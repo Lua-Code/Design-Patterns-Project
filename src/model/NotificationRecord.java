@@ -1,4 +1,3 @@
-
 package model;
 
 import java.io.Serializable;
@@ -31,6 +30,19 @@ public class NotificationRecord implements Serializable {
 
         this.dateTime = LocalDateTime.now().format(formatter);
     }
+    public NotificationRecord(
+            String method,
+            String recipient,
+            String message,
+            String status,
+            String dateTime) {
+
+        this.method = method;
+        this.recipient = recipient;
+        this.message = message;
+        this.status = status;
+        this.dateTime = dateTime;
+    }
 
     public String getMethod() {
         return method;
@@ -50,5 +62,12 @@ public class NotificationRecord implements Serializable {
 
     public String getDateTime() {
         return dateTime;
+    }
+
+    public void DisplayInfo(){
+        System.out.println("Method: "+method);
+        System.out.println("Recipient: "+recipient);
+        System.out.println("Message: "+message);
+        System.out.println("Date and Time: "+dateTime);
     }
 }
