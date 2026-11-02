@@ -43,13 +43,6 @@ public class Donation implements Serializable{
         return donationMethod;
     }
 
-    public void displayInfo() {
-        System.out.println("Donation ID: " + donationId);
-        System.out.println("Donor: " + donor.getName());
-        System.out.println("Amount: " + amount + " EGP");
-        System.out.println("Donation Type: " + donationType);
-        System.out.println("Donation Method: " + donationMethod);
-    }
 
     public void setInKindDetails(String itemName, int quantity) {
 
@@ -75,6 +68,14 @@ public class Donation implements Serializable{
 
     public int getQuantity() {
         return quantity;
+    }
+
+    public void displayInfo() {
+        System.out.println("Donation ID: " + donationId);
+        System.out.println("Donor: " + donor.getName());
+        System.out.println("Amount: " + amount + " EGP");
+        System.out.println("Donation Type: " + donationType);
+        System.out.println("Donation Method: " + donationMethod);
     }
 
 }

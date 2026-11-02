@@ -2,8 +2,9 @@ package view;
 
 import controller.*;
 import singleton.OrganizationManager;
-import storage.AppData;
-import storage.DataStorage;
+import database.MongoDBConnection;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -14,7 +15,6 @@ import java.util.Map;
 
 public class DashboardView extends JFrame {
 
-    private AppData appData;
     private JPanel mainPanel;
 
     private DonationController donationController;
@@ -52,6 +52,13 @@ public class DashboardView extends JFrame {
         setMinimumSize(new Dimension(950, 650));
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                MongoDBConnection.close();
+            }
+        });
         setLocationRelativeTo(null);
 
         getContentPane().setBackground(ModernTheme.BACKGROUND);
@@ -71,21 +78,21 @@ public class DashboardView extends JFrame {
 
         try {
 
-            appData = DataStorage.load();
+            initializeModules();
 
-        } catch (IOException | ClassNotFoundException ex) {
+        } catch (RuntimeException ex) {
 
             JOptionPane.showMessageDialog(
                     this,
-                    "Could not load saved application data.\n"
-                            + "The existing file has not been overwritten.",
-                    "Loading Error",
+                    "Could not connect to the database.\n"
+                            + ex.getMessage(),
+                    "Database Connection Error",
                     JOptionPane.ERROR_MESSAGE
             );
 
-            throw new IllegalStateException(
-                    "Failed to load saved application data.", ex
-            );
+            MongoDBConnection.close();
+            dispose();
+            throw ex;
         }
 
         initializeModules();
@@ -313,30 +320,28 @@ public class DashboardView extends JFrame {
 
     private void initializeModules() {
 
-        lookupController = new LookupController(appData);
+        lookupController = new LookupController();
         lookupView = new LookupView();
         lookupController.connectView(lookupView);
 
-        donationController = new DonationController(appData);
+        donationController = new DonationController();
         donationView = new DonationView();
         donationController.connectView(donationView);
 
-        volunteerController = new VolunteerController(appData);
+        volunteerController = new VolunteerController();
         volunteerView = new VolunteerView();
         volunteerController.connectView(volunteerView);
 
-        eventController = new EventController(appData);
+        eventController = new EventController();
         eventView = new EventView();
         eventController.connectView(eventView);
 
-        beneficiaryController =
-                new BeneficiaryController(appData);
+        beneficiaryController = new BeneficiaryController();
 
         beneficiaryView = new BeneficiaryView();
         beneficiaryController.connectView(beneficiaryView);
 
-        communicationController =
-                new CommunicationController(appData);
+        communicationController = new CommunicationController();
 
         communicationView = new CommunicationView();
         communicationController.connectView(communicationView);

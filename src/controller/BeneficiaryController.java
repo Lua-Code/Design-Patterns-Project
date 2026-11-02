@@ -1,125 +1,60 @@
-
 package controller;
 
+import com.mongodb.MongoWriteException;
 import model.Beneficiary;
-import storage.AppData;
-import storage.DataStorage;
+import repository.BeneficiaryRepository;
 import view.BeneficiaryView;
 
 import javax.swing.*;
-import java.io.IOException;
 import java.util.ArrayList;
 
 public class BeneficiaryController {
 
-    private final AppData appData;
-    private final ArrayList<Beneficiary> beneficiaries;
+    private final BeneficiaryRepository beneficiaryRepository;
 
-    private int nextBeneficiaryId = 401;
-
-    public BeneficiaryController(AppData appData) {
-
-        this.appData = appData;
-        this.beneficiaries = appData.getBeneficiaries();
-
-        // Continue IDs after saved records
-        for (Beneficiary beneficiary : beneficiaries) {
-            nextBeneficiaryId = Math.max(
-                    nextBeneficiaryId,
-                    beneficiary.getId() + 1
-            );
-        }
+    public BeneficiaryController() {
+        this.beneficiaryRepository = new BeneficiaryRepository();
     }
 
-    private void saveData() {
-        try {
-            DataStorage.save(appData);
-        } catch (IOException ex) {
-            throw new IllegalStateException(
-                    "Could not save beneficiary data: " + ex.getMessage(),
-                    ex
-            );
-        }
-    }
+    public Beneficiary addBeneficiary(String name, String email, String phone, ArrayList<String> needs) {
+        if (name == null || name.length() < 2 || name.length() > 100 || !name.matches("\\p{L}[\\p{L} .'-]*")) {
 
-    public Beneficiary addBeneficiary(
-            String name,
-            String email,
-            String phone,
-            ArrayList<String> needs) {
-
-        if (name == null || name.length() < 2
-                || name.length() > 100
-                || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
-
-            throw new IllegalArgumentException(
-                    "Please enter a valid beneficiary name."
-            );
+            throw new IllegalArgumentException("Please enter a valid beneficiary name.");
         }
 
-        if (email == null ||
-                !email.matches(
-                        "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-                )) {
-
-            throw new IllegalArgumentException(
-                    "Please enter a valid email."
-            );
+        if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new IllegalArgumentException("Please enter a valid email.");
         }
 
-        if (phone == null ||
-                !phone.matches("^01[0125][0-9]{8}$")) {
-
-            throw new IllegalArgumentException(
-                    "Please enter a valid Egyptian mobile number."
-            );
+        if (phone == null || !phone.matches("^01[0125][0-9]{8}$")) {
+            throw new IllegalArgumentException("Please enter a valid Egyptian mobile number.");
         }
 
         if (needs == null || needs.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Please select at least one beneficiary need."
-            );
+            throw new IllegalArgumentException("Please select at least one beneficiary need.");
         }
 
-        for (Beneficiary beneficiary : beneficiaries) {
-            if (beneficiary.getEmail().equalsIgnoreCase(email)) {
-                throw new IllegalArgumentException(
-                        "A beneficiary with this email already exists."
-                );
-            }
+        if (beneficiaryRepository.findBeneficiaryByEmail(email) != null) {
+            throw new IllegalArgumentException("A beneficiary with this email already exists.");
         }
-
-        Beneficiary beneficiary = new Beneficiary(
-                nextBeneficiaryId++,
-                name, email, phone, needs
-        );
-
-        beneficiaries.add(beneficiary);
 
         try {
-            saveData();
-        } catch (IllegalStateException ex) {
-            beneficiaries.remove(beneficiary);
-            nextBeneficiaryId--;
+            return beneficiaryRepository.addBeneficiary(name, email, phone, needs);
+        } catch (MongoWriteException ex) {
+            if (ex.getError().getCode() == 11000) {
+                throw new IllegalArgumentException("A beneficiary with this email already exists.");
+            }
+
             throw ex;
         }
-
-        return beneficiary;
     }
 
     public ArrayList<Beneficiary> getBeneficiaries() {
-        return new ArrayList<>(beneficiaries);
+        return beneficiaryRepository.getAllBeneficiaries();
     }
 
     public Beneficiary findBeneficiary(int id) {
-
-        for (Beneficiary beneficiary : beneficiaries) {
-            if (beneficiary.getId() == id) {
-                return beneficiary;
-            }
-        }
-
-        return null;
+        return beneficiaryRepository.findBeneficiaryById(id);
     }
 
     public void updateAssistanceStatus(int id, String status) {
@@ -127,68 +62,34 @@ public class BeneficiaryController {
         Beneficiary beneficiary = findBeneficiary(id);
 
         if (beneficiary == null) {
-            throw new IllegalArgumentException(
-                    "Beneficiary not found."
-            );
+            throw new IllegalArgumentException("Beneficiary not found.");
         }
 
-        if (status == null ||
-                (!status.equals("Pending")
-                        && !status.equals("In Progress")
-                        && !status.equals("Completed"))) {
-
-            throw new IllegalArgumentException(
-                    "Invalid assistance status."
-            );
+        if (status == null || (!status.equals("Pending") && !status.equals("In Progress") && !status.equals("Completed"))) {
+            throw new IllegalArgumentException("Invalid assistance status.");
         }
 
-        String previousStatus =
-                beneficiary.getAssistanceStatus();
+        boolean updated = beneficiaryRepository.updateAssistanceStatus(id, status);
 
-        beneficiary.updateAssistanceStatus(status);
-
-        try {
-            saveData();
-        } catch (IllegalStateException ex) {
-            beneficiary.updateAssistanceStatus(previousStatus);
-            throw ex;
+        if (!updated) {
+            throw new IllegalArgumentException("Beneficiary not found.");
         }
     }
 
     public int getBeneficiaryCount() {
-        return beneficiaries.size();
+        return Math.toIntExact(beneficiaryRepository.getBeneficiaryCount());
     }
 
     public int getPendingCount() {
-
-        int count = 0;
-
-        for (Beneficiary beneficiary : beneficiaries) {
-            if (beneficiary.getAssistanceStatus().equals("Pending")) {
-                count++;
-            }
-        }
-
-        return count;
+        return Math.toIntExact(beneficiaryRepository.getPendingCount());
     }
 
     public int getCompletedCount() {
-
-        int count = 0;
-
-        for (Beneficiary beneficiary : beneficiaries) {
-            if (beneficiary.getAssistanceStatus().equals("Completed")) {
-                count++;
-            }
-        }
-
-        return count;
+        return Math.toIntExact(beneficiaryRepository.getCompletedCount());
     }
 
     public void connectView(BeneficiaryView view) {
-
-        // Restore saved beneficiaries
-        for (Beneficiary beneficiary : beneficiaries) {
+        for (Beneficiary beneficiary : getBeneficiaries()) {
 
             view.addBeneficiaryToTable(
                     beneficiary.getId(),
@@ -200,8 +101,7 @@ public class BeneficiaryController {
             );
         }
 
-        // Register beneficiary
-        view.getRegisterButton().addActionListener(e -> {
+        view.getRegisterButton().addActionListener(_ -> {
 
             try {
                 Beneficiary beneficiary = addBeneficiary(
@@ -222,26 +122,22 @@ public class BeneficiaryController {
 
                 view.clearFields();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Beneficiary registered and saved successfully!"
-                );
+                JOptionPane.showMessageDialog(view, "Beneficiary registered and saved successfully!");
 
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (IllegalArgumentException ex) {
                 showError(view, ex.getMessage());
+            } catch (RuntimeException ex) {
+                showError(view, "Could not register beneficiary: " + ex.getMessage());
             }
         });
 
-        // Update assistance status
-        view.getUpdateStatusButton().addActionListener(e -> {
+        view.getUpdateStatusButton().addActionListener(_ -> {
 
             try {
                 int id = view.getSelectedBeneficiaryId();
 
                 if (id == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a beneficiary."
-                    );
+                    throw new IllegalArgumentException("Please select a beneficiary.");
                 }
 
                 String status = view.getSelectedStatus();
@@ -250,23 +146,17 @@ public class BeneficiaryController {
 
                 view.updateBeneficiaryStatus(id, status);
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Assistance status updated and saved!"
-                );
+                JOptionPane.showMessageDialog(view, "Assistance status updated and saved!");
 
-            } catch (IllegalArgumentException | IllegalStateException ex) {
+            } catch (IllegalArgumentException ex) {
                 showError(view, ex.getMessage());
+            } catch (RuntimeException ex) {
+                showError(view, "Could not update assistance status: " + ex.getMessage());
             }
         });
     }
 
     private void showError(BeneficiaryView view, String message) {
-        JOptionPane.showMessageDialog(
-                view,
-                message,
-                "Beneficiary Error",
-                JOptionPane.ERROR_MESSAGE
-        );
+        JOptionPane.showMessageDialog(view, message, "Beneficiary Error", JOptionPane.ERROR_MESSAGE);
     }
 }
