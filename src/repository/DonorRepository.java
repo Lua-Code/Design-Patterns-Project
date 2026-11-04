@@ -91,7 +91,7 @@ public class DonorRepository {
         return donors.updateOne(
                 eq("id", id),
                 new Document("$set", updates)
-        ).getModifiedCount() > 0;
+        ).getMatchedCount() > 0;
     }
 
     public boolean deleteDonor(int id) {

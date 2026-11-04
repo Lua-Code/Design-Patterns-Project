@@ -12,8 +12,8 @@ import repository.DonorRepository;
 import repository.DonationRepository;
 
 import javax.swing.*;
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class DonationController {
 
@@ -21,37 +21,24 @@ public class DonationController {
     private final DonationRepository donationRepository;
 
     public DonationController() {
+
         donorRepository = new DonorRepository();
         donationRepository = new DonationRepository();
     }
 
-    // Find an existing donor using their email address
-    public Donor findDonorByEmail(String email) {
-        return donorRepository.findDonorByEmail(email);
-    }
-
-    // Create a donor only if they do not already exist
-    public Donor addDonor(String name, String email, String phone) {
-
-        validateName(name);
-        validateEmail(email);
-        validatePhone(phone);
-
-        Donor existingDonor = findDonorByEmail(email);
-
-        if (existingDonor != null) {
-
-            if (!existingDonor.getName().equalsIgnoreCase(name) || !existingDonor.getPhone().equals(phone)) {
-                throw new IllegalArgumentException("A donor with this email already exists.\n" + "Please enter the same donor name and phone number.");
-            }
-
-            return existingDonor;
-        }
-
-        return donorRepository.addDonor(name, email, phone);
-    }
-
-    public Donation addDonation(Donor donor, double amount, String type, String method, String itemName, int quantity) {
+    public Donation addDonation(
+            Donor donor,
+            double amount,
+            String type,
+            String method,
+            String itemName,
+            int quantity,
+            String paymentEmail,
+            String paymentReference,
+            String bankName,
+            String checkNumber,
+            String accountHolder,
+            boolean taxInfoSelected) {
 
         if (donor == null) {
             throw new IllegalArgumentException("Donor is required.");
@@ -62,10 +49,18 @@ public class DonationController {
         }
 
         if (amount == 0 && !method.equals("In-Kind")) {
-            throw new IllegalArgumentException("Monetary donations must be greater than zero.");
+            throw new IllegalArgumentException(
+                    "Monetary donations must be greater than zero."
+            );
         }
 
-        return donationRepository.addDonation(donor, amount, type, method, itemName, quantity);
+        return donationRepository.addDonation(
+                donor, amount, type, method,
+                itemName, quantity,
+                paymentEmail, paymentReference,
+                bankName, checkNumber, accountHolder,
+                taxInfoSelected
+        );
     }
 
     public ArrayList<Donor> getDonors() {
@@ -80,19 +75,19 @@ public class DonationController {
         return donationRepository.getTotalDonations();
     }
 
-    private void validateName(String name) {
+    private void validateAccountHolder(String name) {
 
         if (name == null || name.length() < 2
                 || name.length() > 100
                 || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
 
             throw new IllegalArgumentException(
-                    "Enter a valid donor name."
+                    "Enter a valid account holder name."
             );
         }
     }
 
-    private void validateEmail(String email) {
+    private void validatePaymentEmail(String email) {
 
         if (email == null ||
                 !email.matches(
@@ -100,18 +95,7 @@ public class DonationController {
                 )) {
 
             throw new IllegalArgumentException(
-                    "Please enter a valid email address."
-            );
-        }
-    }
-
-    private void validatePhone(String phone) {
-
-        if (phone == null ||
-                !phone.matches("^01[0125][0-9]{8}$")) {
-
-            throw new IllegalArgumentException(
-                    "Phone must be a valid Egyptian mobile number."
+                    "Please enter a valid payment email address."
             );
         }
     }
@@ -152,7 +136,7 @@ public class DonationController {
 
             case "Online":
 
-                validateEmail(view.getPaymentEmail());
+                validatePaymentEmail(view.getPaymentEmail());
 
                 if (!view.getPaymentReference()
                         .matches("[A-Za-z0-9_-]{3,50}")) {
@@ -185,7 +169,7 @@ public class DonationController {
                     );
                 }
 
-                validateName(view.getAccountHolder());
+                validateAccountHolder(view.getAccountHolder());
 
                 return new CheckDonation(
                         view.getBankName(),
@@ -206,9 +190,7 @@ public class DonationController {
                 int quantity;
 
                 try {
-                    quantity = Integer.parseInt(
-                            view.getQuantity()
-                    );
+                    quantity = Integer.parseInt(view.getQuantity());
 
                 } catch (NumberFormatException ex) {
 
@@ -235,8 +217,397 @@ public class DonationController {
 
     public void connectView(DonationView view) {
 
-        // Display saved donations from MongoDB
+        // Load registered donors and saved donations
+        view.loadDonors(getDonors());
+        refreshDonationTable(view);
+
+        view.getSubmitButton().addActionListener(e -> {
+
+            try {
+
+                if (view.isEditing()) {
+                    throw new IllegalArgumentException(
+                            "You are editing a donation. Use Save Changes instead."
+                    );
+                }
+
+                // Retrieve the selected registered donor
+                Donor selectedDonor = view.getSelectedDonor();
+
+                if (selectedDonor == null) {
+                    throw new IllegalArgumentException(
+                            "Please select a registered donor."
+                    );
+                }
+
+                // Retrieve the latest donor information from the database
+                Donor donor = donorRepository.findDonorById(
+                        selectedDonor.getId()
+                );
+
+                if (donor == null) {
+                    throw new IllegalArgumentException(
+                            "Selected donor no longer exists. Please refresh the donor list."
+                    );
+                }
+
+                String name = donor.getName();
+                String email = donor.getEmail();
+
+                String method = view.getDonationMethod();
+                String type = view.getDonationType();
+
+                if (method == null || type == null || type.isBlank()) {
+                    throw new IllegalArgumentException(
+                            "Select a valid donation method and type."
+                    );
+                }
+
+                if ((method.equals("Online") || method.equals("Check"))
+                        && !type.equalsIgnoreCase("Money")) {
+
+                    throw new IllegalArgumentException(
+                            "Monetary donations must use the Money type."
+                    );
+                }
+
+                if (method.equals("In-Kind") && type.equalsIgnoreCase("Money")) {
+                    throw new IllegalArgumentException(
+                            "Select a physical donation type."
+                    );
+                }
+
+                double amount = validateAmount(view.getAmount(), method);
+
+                // Strategy Pattern
+                DonationStrategy strategy = createStrategy(view, method);
+
+                DonationProcessor processor = new DonationProcessor(strategy);
+
+                if (!processor.processDonation(amount)) {
+                    throw new IllegalArgumentException(
+                            "Donation could not be accepted."
+                    );
+                }
+
+                String itemName = "";
+                int quantity = 0;
+
+                if (method.equals("In-Kind")) {
+                    itemName = view.getItemName();
+                    quantity = Integer.parseInt(view.getQuantity());
+                }
+
+                // Save the donation
+                Donation newDonation = addDonation(
+                        donor, amount, type, method,
+                        itemName, quantity,
+                        view.getPaymentEmail(),
+                        view.getPaymentReference(),
+                        view.getBankName(),
+                        view.getCheckNumber(),
+                        view.getAccountHolder(),
+                        view.isTaxInfoSelected()
+                );
+
+                // Observer Pattern
+                EventManager manager = new EventManager("donation");
+
+                manager.subscribe(
+                        "donation",
+                        new EmailNotificationListener(email)
+                );
+
+                manager.subscribe(
+                        "donation",
+                        new LogNotificationListener("DonationLog")
+                );
+
+                String description = method.equals("In-Kind")
+                        ? name + " donated " + quantity + " x " + itemName + "."
+                        : name + " donated " + amount + " EGP.";
+
+                // Notification failure must not affect a saved donation
+                try {
+                    manager.notify("donation", description);
+
+                } catch (RuntimeException notificationError) {
+
+                    System.err.println(
+                            "Donation saved, but notification failed: "
+                                    + notificationError.getMessage()
+                    );
+                }
+
+                // Decorator Pattern
+                Receipt receipt = new BasicReceipt(newDonation);
+
+                receipt = new ThankYouDecorator(receipt, name);
+
+                if (view.isTaxInfoSelected()) {
+                    receipt = new TaxInfoDecorator(receipt);
+                }
+
+                // Update the donation table
+                view.addDonationToTable(
+                        newDonation.getDonor().getId(),
+                        newDonation.getDonationId(),
+                        name,
+                        amount,
+                        type,
+                        method
+                );
+
+                view.showReceipt(receipt.generateReceipt());
+                view.clearFields();
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        "Donation registered and saved successfully!"
+                );
+
+            } catch (RuntimeException ex) {
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        ex.getMessage() == null
+                                ? "An unexpected error occurred."
+                                : ex.getMessage(),
+                        "Donation Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        // Load a donation when a table row is selected
+        view.getTable().getSelectionModel().addListSelectionListener(e -> {
+
+            if (e.getValueIsAdjusting()) {
+                return;
+            }
+
+            int donationId = view.getSelectedDonationId();
+
+            if (donationId == -1) {
+                return;
+            }
+
+            try {
+
+                Donation donation =
+                        donationRepository.findDonationById(donationId);
+
+                if (donation != null) {
+                    view.loadDonation(donation);
+                    view.setEditingMode(true);
+                }
+
+            } catch (RuntimeException ex) {
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        ex.getMessage() == null
+                                ? "Could not load donation."
+                                : ex.getMessage(),
+                        "Donation Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        // Update the selected donation
+        view.getUpdateButton().addActionListener(e -> {
+
+            try {
+
+                int donationId = view.getSelectedDonationId();
+
+                if (donationId == -1) {
+                    throw new IllegalArgumentException(
+                            "Please select a donation first."
+                    );
+                }
+
+                Donation original =
+                        donationRepository.findDonationById(donationId);
+
+                if (original == null) {
+                    throw new IllegalArgumentException(
+                            "Donation could not be found."
+                    );
+                }
+
+                // Preserve the original donor
+                Donation updatedDonation = createDonationFromView(
+                        view,
+                        donationId,
+                        original.getDonor()
+                );
+
+                boolean updated =
+                        donationRepository.updateDonation(updatedDonation);
+
+                if (!updated) {
+                    throw new IllegalStateException(
+                            "Could not update donation."
+                    );
+                }
+
+                refreshDonationTable(view);
+                view.clearFields();
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        "Donation updated successfully!"
+                );
+
+            } catch (RuntimeException ex) {
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        ex.getMessage() == null
+                                ? "An unexpected error occurred."
+                                : ex.getMessage(),
+                        "Donation Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        // Delete the selected donation
+        view.getDeleteButton().addActionListener(e -> {
+
+            try {
+
+                int donationId = view.getSelectedDonationId();
+
+                if (donationId == -1) {
+                    throw new IllegalArgumentException(
+                            "Please select a donation first."
+                    );
+                }
+
+                int confirmation = JOptionPane.showConfirmDialog(
+                        view,
+                        "Are you sure you want to delete this donation?",
+                        "Confirm Deletion",
+                        JOptionPane.YES_NO_OPTION
+                );
+
+                if (confirmation != JOptionPane.YES_OPTION) {
+                    return;
+                }
+
+                Donation donation =
+                        donationRepository.findDonationById(donationId);
+
+                if (donation == null) {
+                    throw new IllegalArgumentException(
+                            "Donation could not be found."
+                    );
+                }
+
+                boolean deleted =
+                        donationRepository.deleteDonation(donationId);
+
+                if (!deleted) {
+                    throw new IllegalStateException(
+                            "Could not delete donation."
+                    );
+                }
+
+                refreshDonationTable(view);
+                view.clearFields();
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        "Donation deleted successfully!"
+                );
+
+            } catch (RuntimeException ex) {
+
+                JOptionPane.showMessageDialog(
+                        view,
+                        ex.getMessage() == null
+                                ? "An unexpected error occurred."
+                                : ex.getMessage(),
+                        "Donation Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        // Clear the form or cancel editing
+        view.getClearButton().addActionListener(e -> {
+            view.clearFields();
+        });
+
+        // Search donations
+        view.getSearchButton().addActionListener(e -> {
+            searchDonationTable(view);
+        });
+
+        // Refresh donors and donations
+        view.getRefreshButton().addActionListener(e -> {
+
+            view.loadDonors(getDonors());
+            view.clearSearchField();
+
+            refreshDonationTable(view);
+            view.clearFields();
+        });
+    }
+
+    private void searchDonationTable(DonationView view) {
+
+        String search = view.getSearchText().toLowerCase(Locale.ROOT);
+
+        view.clearTable();
+
+        if (search.isBlank()) {
+            refreshDonationTable(view);
+            return;
+        }
+
         for (Donation donation : getDonations()) {
+
+            if (donation == null || donation.getDonor() == null) {
+                continue;
+            }
+
+            Donor donor = donation.getDonor();
+
+            String donorId = String.valueOf(donor.getId());
+            String donationId = String.valueOf(donation.getDonationId());
+
+            boolean matches =
+                    donor.getName().toLowerCase(Locale.ROOT).contains(search)
+                            || donor.getEmail().toLowerCase(Locale.ROOT).contains(search)
+                            || donorId.contains(search)
+                            || donationId.contains(search);
+
+            if (matches) {
+                view.addDonationToTable(
+                        donor.getId(),
+                        donation.getDonationId(),
+                        donor.getName(),
+                        donation.getAmount(),
+                        donation.getDonationType(),
+                        donation.getDonationMethod()
+                );
+            }
+        }
+    }
+
+    private void refreshDonationTable(DonationView view) {
+
+        view.clearTable();
+
+        for (Donation donation : getDonations()) {
+
+            if (donation == null || donation.getDonor() == null) {
+                continue;
+            }
 
             view.addDonationToTable(
                     donation.getDonor().getId(),
@@ -247,122 +618,89 @@ public class DonationController {
                     donation.getDonationMethod()
             );
         }
+    }
 
-        view.getSubmitButton().addActionListener(e -> {
+    private Donation createDonationFromView(
+            DonationView view,
+            int donationId,
+            Donor donor) {
 
-            try {
+        String method = view.getDonationMethod();
+        String type = view.getDonationType();
 
-                String name = view.getDonorName();
-                String email = view.getDonorEmail();
-                String phone = view.getDonorPhone();
+        if (method == null || type == null || type.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Select a valid donation method and type."
+            );
+        }
 
-                validateName(name);
-                validateEmail(email);
-                validatePhone(phone);
+        if ((method.equals("Online") || method.equals("Check"))
+                && !type.equalsIgnoreCase("Money")) {
 
-                String method = view.getDonationMethod();
-                String type = view.getDonationType();
+            throw new IllegalArgumentException(
+                    "Monetary donations must use the Money type."
+            );
+        }
 
-                if (method == null || type == null || type.isBlank()) {
+        if (method.equals("In-Kind") && type.equalsIgnoreCase("Money")) {
+            throw new IllegalArgumentException(
+                    "Select a physical donation type."
+            );
+        }
 
-                    throw new IllegalArgumentException("Select a valid donation method and type.");
-                }
+        double amount = validateAmount(view.getAmount(), method);
 
-                if ((method.equals("Online") || method.equals("Check")) && !type.equalsIgnoreCase("Money")) {
-                    throw new IllegalArgumentException(
-                            "Monetary donations must use the Money type."
-                    );
-                }
+        DonationStrategy strategy = createStrategy(view, method);
 
-                if (method.equals("In-Kind") && type.equalsIgnoreCase("Money")) {
-                    throw new IllegalArgumentException("Select a physical donation type.");
-                }
+        DonationProcessor processor = new DonationProcessor(strategy);
 
-                double amount = validateAmount(
-                        view.getAmount(), method
+        if (!processor.processDonation(amount)) {
+            throw new IllegalArgumentException(
+                    "Donation could not be accepted."
+            );
+        }
+
+        Donation donation = new Donation(
+                donationId,
+                donor,
+                amount,
+                type,
+                method
+        );
+
+        switch (method) {
+
+            case "Online":
+
+                donation.setOnlineDetails(
+                        view.getPaymentEmail(),
+                        view.getPaymentReference()
                 );
 
-                // Validate the selected donation strategy
-                DonationStrategy strategy = createStrategy(view, method);
+                break;
 
-                // Check whether the donor already exists
-                Donor donor = findDonorByEmail(email);
+            case "Check":
 
-                if (donor != null) {
-
-                    if (!donor.getName().equalsIgnoreCase(name)
-                            || !donor.getPhone().equals(phone)) {
-
-                        throw new IllegalArgumentException("This email belongs to an existing donor.\n" + "Please use their registered name and phone number.");
-                    }
-                }
-
-                DonationProcessor processor = new DonationProcessor(strategy);
-
-                if (!processor.processDonation(amount)) {
-                    throw new IllegalArgumentException("Donation could not be accepted.");
-                }
-
-                // Reuse the existing donor or create a new one
-                if (donor == null) {
-                    donor = addDonor(name, email, phone);
-                }
-
-                // Prepare in-kind details
-                String itemName = "";
-                int quantity = 0;
-
-                if (method.equals("In-Kind")) {
-                    itemName = view.getItemName();
-                    quantity = Integer.parseInt(view.getQuantity());
-                }
-
-                // Save the donation directly to MongoDB
-                Donation newDonation = addDonation(donor,amount, type, method, itemName, quantity);
-
-                // Observer Pattern
-                EventManager manager = new EventManager("donation");
-
-                manager.subscribe("donation", new EmailNotificationListener(email));
-
-                manager.subscribe("donation", new LogNotificationListener("DonationLog")
+                donation.setCheckDetails(
+                        view.getBankName(),
+                        view.getCheckNumber(),
+                        view.getAccountHolder()
                 );
 
-                String description = method.equals("In-Kind")
-                        ? name + " donated " + quantity
-                        + " x " + itemName + "."
-                        : name + " donated " + amount + " EGP.";
+                break;
 
-                // A notification failure must not affect a saved donation
-                try {
-                    manager.notify("donation", description);
+            case "In-Kind":
 
-                } catch (RuntimeException notificationError) {
+                donation.setInKindDetails(
+                        view.getItemName(),
+                        Integer.parseInt(view.getQuantity())
+                );
 
-                    System.err.println("Donation saved, but notification failed: " + notificationError.getMessage());
-                }
-                // Decorator Pattern
-                Receipt receipt = new BasicReceipt(newDonation);
+                break;
+        }
 
-                receipt = new ThankYouDecorator(receipt, name);
+        donation.setTaxInfoSelected(view.isTaxInfoSelected());
 
-                if (view.isTaxInfoSelected()) {
-                    receipt = new TaxInfoDecorator(receipt);
-                }
-
-                // Update GUI
-                view.addDonationToTable(newDonation.getDonor().getId(), newDonation.getDonationId(), name, amount, type, method);
-
-                view.showReceipt(receipt.generateReceipt());
-                view.clearFields();
-
-                JOptionPane.showMessageDialog(view, "Donation registered and saved successfully!");
-
-            } catch (RuntimeException ex) {
-
-                JOptionPane.showMessageDialog(view, ex.getMessage() == null ? "An unexpected error occurred." : ex.getMessage(), "Donation Error",
-                        JOptionPane.ERROR_MESSAGE);
-            }
-        });
+        return donation;
     }
 }

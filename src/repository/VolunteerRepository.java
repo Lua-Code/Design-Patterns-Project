@@ -27,17 +27,31 @@ public class VolunteerRepository {
         volunteers = database.getCollection("volunteers");
         counters = database.getCollection("_counters");
 
-        volunteers.createIndex(new Document("id", 1), new IndexOptions().unique(true));
+        volunteers.createIndex(
+                new Document("id", 1),
+                new IndexOptions().unique(true)
+        );
 
-        volunteers.createIndex(new Document("normalizedEmail", 1), new IndexOptions().unique(true));
+        volunteers.createIndex(
+                new Document("normalizedEmail", 1),
+                new IndexOptions().unique(true)
+        );
 
         initializeIdCounter(200);
     }
 
-    public Volunteer addVolunteer(String name, String email, String phone,ArrayList<String> skills, String availability) {
+    public Volunteer addVolunteer(
+            String name,
+            String email,
+            String phone,
+            ArrayList<String> skills,
+            String availability
+    ) {
         int id = getNextVolunteerId();
 
-        Volunteer volunteer = new Volunteer(id, name, email, phone, skills, availability);
+        Volunteer volunteer = new Volunteer(
+                id, name, email, phone, skills, availability
+        );
 
         Document document = new Document("id", volunteer.getId())
                 .append("name", volunteer.getName())
@@ -70,18 +84,45 @@ public class VolunteerRepository {
     }
 
     public Volunteer findVolunteerByEmail(String email) {
-        Document document = volunteers.find(eq("normalizedEmail", normalizeEmail(email))).first();
+        Document document = volunteers.find(
+                eq("normalizedEmail", normalizeEmail(email))
+        ).first();
 
         return document == null ? null : toVolunteer(document);
     }
 
+    public boolean updateVolunteer(
+            int id,
+            String name,
+            String email,
+            String phone,
+            ArrayList<String> skills,
+            String availability
+    ) {
+        Document updates = new Document("name", name)
+                .append("email", email)
+                .append("normalizedEmail", normalizeEmail(email))
+                .append("phone", phone)
+                .append("skills", skills)
+                .append("availability", availability);
+
+        return volunteers.updateOne(
+                eq("id", id),
+                new Document("$set", updates)
+        ).getMatchedCount() > 0;
+    }
+
     public boolean addVolunteerHours(int id, double hours) {
         if (!Double.isFinite(hours) || hours <= 0) {
-            throw new IllegalArgumentException("Volunteer hours must be greater than zero.");
+            throw new IllegalArgumentException(
+                    "Volunteer hours must be greater than zero."
+            );
         }
 
-        return volunteers.updateOne(eq("id", id), new Document("$inc", new Document("volunteerHours", hours)))
-                .getMatchedCount() > 0;
+        return volunteers.updateOne(
+                eq("id", id),
+                new Document("$inc", new Document("volunteerHours", hours))
+        ).getMatchedCount() > 0;
     }
 
     public double getTotalVolunteerHours() {
@@ -109,7 +150,10 @@ public class VolunteerRepository {
     public void initializeIdCounter(int highestExistingId) {
         counters.updateOne(
                 eq("_id", "volunteer"),
-                new Document("$max", new Document("sequence", highestExistingId)),
+                new Document(
+                        "$max",
+                        new Document("sequence", highestExistingId)
+                ),
                 new UpdateOptions().upsert(true)
         );
     }
@@ -127,7 +171,9 @@ public class VolunteerRepository {
     }
 
     private Volunteer toVolunteer(Document document) {
-        ArrayList<String> skills = new ArrayList<>(document.getList("skills", String.class));
+        ArrayList<String> skills = new ArrayList<>(
+                document.getList("skills", String.class)
+        );
 
         Volunteer volunteer = new Volunteer(
                 document.getInteger("id"),

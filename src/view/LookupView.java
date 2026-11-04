@@ -1,41 +1,47 @@
-
 package view;
 
 import model.LookupItem;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.ArrayList;
 
 public class LookupView extends JPanel {
 
-    private JComboBox<String> categoryBox;
-    private JTextField valueField;
+    private static final Color PRIMARY = new Color(36, 70, 91);
+    private static final Color BACKGROUND = Color.WHITE;
 
-    private JButton addButton;
-    private JButton updateButton;
-    private JButton deleteButton;
+    private final JComboBox<String> categoryBox;
+    private final JTextField valueField;
+    private final JTextField searchField;
 
-    private JTable lookupTable;
-    private DefaultTableModel tableModel;
+    private final JButton addButton;
+    private final JButton updateButton;
+    private final JButton deleteButton;
+    private final JButton refreshButton;
 
-    private final Color PRIMARY = new Color(36, 70, 91);
+    private final JTable lookupTable;
+    private final DefaultTableModel tableModel;
+
+    private ArrayList<LookupItem> currentItems = new ArrayList<>();
 
     public LookupView() {
+        setLayout(new BorderLayout());
+        setBackground(BACKGROUND);
+        setBorder(new EmptyBorder(15, 20, 15, 20));
 
-        setLayout(new BorderLayout(10, 10));
-        setBackground(Color.WHITE);
-        setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
-
-        // Page title
         JLabel title = new JLabel("Lookup Management");
         title.setFont(new Font("Arial", Font.BOLD, 24));
+        title.setForeground(PRIMARY);
 
-
-        // Form panel
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBackground(Color.WHITE);
+        JPanel titlePanel = new JPanel(new BorderLayout());
+        titlePanel.setBackground(BACKGROUND);
+        titlePanel.setBorder(new EmptyBorder(0, 0, 15, 0));
+        titlePanel.add(title, BorderLayout.WEST);
 
         categoryBox = new JComboBox<>(new String[]{
                 "Volunteer Skills",
@@ -44,68 +50,53 @@ public class LookupView extends JPanel {
                 "Event Types"
         });
 
-        categoryBox.setPreferredSize(new Dimension(250, 28));
+        valueField = createTextField();
+        searchField = createTextField();
 
-        valueField = new JTextField(20);
-        valueField.setPreferredSize(new Dimension(250, 28));
+        addButton = createButton("Add Item");
+        updateButton = createButton("Update Item");
+        deleteButton = createButton("Delete Item");
+        refreshButton = createButton("Refresh");
 
-        // Add form fields
-        addFormRow(
-                formPanel,
-                "Lookup Category:",
-                categoryBox,
-                0
-        );
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setBackground(BACKGROUND);
+        formPanel.setBorder(new EmptyBorder(10, 0, 15, 0));
 
-        addFormRow(
-                formPanel,
-                "Value:",
-                valueField,
-                1
-        );
+        addFormRow(formPanel, "Category", categoryBox, 0);
+        addFormRow(formPanel, "Lookup Value", valueField, 1);
 
-        // Buttons
-        addButton = new JButton("Add");
-        updateButton = new JButton("Update");
-        deleteButton = new JButton("Delete");
+        JPanel formButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        formButtons.setBackground(BACKGROUND);
+        formButtons.add(addButton);
+        formButtons.add(updateButton);
 
-        styleButton(addButton);
-        styleButton(updateButton);
-        styleButton(deleteButton);
+        GridBagConstraints buttonConstraints = new GridBagConstraints();
+        buttonConstraints.gridx = 0;
+        buttonConstraints.gridy = 2;
+        buttonConstraints.gridwidth = 2;
+        buttonConstraints.anchor = GridBagConstraints.WEST;
+        buttonConstraints.insets = new Insets(5, 0, 5, 0);
+        formPanel.add(formButtons, buttonConstraints);
 
-        deleteButton.setBackground(new Color(170, 50, 50));
-
-        JPanel buttonPanel = new JPanel(
-                new FlowLayout(FlowLayout.RIGHT, 10, 5)
-        );
-
-        buttonPanel.setBackground(Color.WHITE);
-
-        buttonPanel.add(addButton);
-        buttonPanel.add(updateButton);
-        buttonPanel.add(deleteButton);
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 1;
-        gbc.gridy = 2;
-        gbc.anchor = GridBagConstraints.EAST;
-        gbc.insets = new Insets(10, 5, 5, 5);
-
-        formPanel.add(buttonPanel, gbc);
-
-        JPanel topPanel = new JPanel(new BorderLayout(5, 10));
-        topPanel.setBackground(Color.WHITE);
-
-        topPanel.add(title, BorderLayout.NORTH);
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(BACKGROUND);
         topPanel.add(formPanel, BorderLayout.CENTER);
 
-        add(topPanel, BorderLayout.NORTH);
+        JPanel searchPanel = new JPanel(new BorderLayout(10, 0));
+        searchPanel.setBackground(BACKGROUND);
+        searchPanel.setBorder(new EmptyBorder(5, 0, 10, 0));
 
-        // Lookup table
-        String[] columns = {"ID", "Value"};
+        JLabel searchLabel = new JLabel("Search");
+        searchLabel.setFont(new Font("Arial", Font.BOLD, 13));
 
-        tableModel = new DefaultTableModel(columns, 0) {
+        searchPanel.add(searchLabel, BorderLayout.WEST);
+        searchPanel.add(searchField, BorderLayout.CENTER);
+        searchPanel.add(refreshButton, BorderLayout.EAST);
 
+        tableModel = new DefaultTableModel(
+                new Object[]{"ID", "Value"},
+                0
+        ) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -113,83 +104,129 @@ public class LookupView extends JPanel {
         };
 
         lookupTable = new JTable(tableModel);
-        lookupTable.setRowHeight(28);
-
+        lookupTable.setRowHeight(26);
+        lookupTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         lookupTable.getTableHeader().setReorderingAllowed(false);
-        lookupTable.setSelectionMode(
-                ListSelectionModel.SINGLE_SELECTION
+        lookupTable.setFont(new Font("Arial", Font.PLAIN, 13));
+        lookupTable.getTableHeader().setFont(
+                new Font("Arial", Font.BOLD, 13)
         );
 
-        JScrollPane scrollPane =
-                new JScrollPane(lookupTable);
+        JScrollPane tableScrollPane = new JScrollPane(lookupTable);
+        tableScrollPane.setBorder(BorderFactory.createLineBorder(
+                new Color(220, 220, 220)
+        ));
 
-        scrollPane.setBorder(
-                BorderFactory.createTitledBorder("Lookup Values")
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        actionPanel.setBackground(BACKGROUND);
+        actionPanel.setBorder(new EmptyBorder(10, 0, 0, 0));
+        actionPanel.add(deleteButton);
+
+        JPanel recordsPanel = new JPanel(new BorderLayout());
+        recordsPanel.setBackground(BACKGROUND);
+        recordsPanel.add(searchPanel, BorderLayout.NORTH);
+        recordsPanel.add(tableScrollPane, BorderLayout.CENTER);
+        recordsPanel.add(actionPanel, BorderLayout.SOUTH);
+
+        JSplitPane splitPane = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                topPanel,
+                recordsPanel
         );
 
-        add(scrollPane, BorderLayout.CENTER);
+        splitPane.setResizeWeight(0.45);
+        splitPane.setDividerSize(8);
+        splitPane.setBorder(null);
+        splitPane.setBackground(BACKGROUND);
 
-        // When a row is selected, display its value
-        lookupTable.getSelectionModel().addListSelectionListener(e -> {
+        add(titlePanel, BorderLayout.NORTH);
+        add(splitPane, BorderLayout.CENTER);
 
-            if (!e.getValueIsAdjusting()) {
+        SwingUtilities.invokeLater(() -> splitPane.setDividerLocation(0.45));
 
+        lookupTable.getSelectionModel().addListSelectionListener(event -> {
+            if (!event.getValueIsAdjusting()) {
                 int selectedRow = lookupTable.getSelectedRow();
 
-                if (selectedRow != -1) {
-
-                    int modelRow =
-                            lookupTable.convertRowIndexToModel(selectedRow);
-
+                if (selectedRow >= 0) {
                     valueField.setText(
-                            tableModel.getValueAt(modelRow, 1).toString()
+                            tableModel.getValueAt(selectedRow, 1).toString()
                     );
                 }
             }
         });
+
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                filterItems();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                filterItems();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                filterItems();
+            }
+        });
+
+        refreshButton.addActionListener(event -> {
+            searchField.setText("");
+            displayItems(currentItems);
+        });
     }
 
-    private void styleButton(JButton button) {
+    private JTextField createTextField() {
+        JTextField field = new JTextField();
+        field.setPreferredSize(new Dimension(250, 28));
+        field.setFont(new Font("Arial", Font.PLAIN, 13));
+        return field;
+    }
 
+    private JButton createButton(String text) {
+        JButton button = new JButton(text);
         button.setBackground(PRIMARY);
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
-        button.setPreferredSize(new Dimension(90, 32));
+        button.setFont(new Font("Arial", Font.BOLD, 12));
+        button.setPreferredSize(new Dimension(150, 32));
+        return button;
     }
 
     private void addFormRow(
             JPanel panel,
             String label,
             JComponent component,
-            int row) {
+            int row
+    ) {
+        GridBagConstraints constraints = new GridBagConstraints();
 
-        GridBagConstraints gbc = new GridBagConstraints();
+        constraints.gridx = 0;
+        constraints.gridy = row;
+        constraints.anchor = GridBagConstraints.WEST;
+        constraints.insets = new Insets(8, 0, 8, 15);
 
-        gbc.gridy = row;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.anchor = GridBagConstraints.WEST;
+        JLabel fieldLabel = new JLabel(label);
+        fieldLabel.setFont(new Font("Arial", Font.BOLD, 13));
 
-        gbc.gridx = 0;
-        gbc.weightx = 0;
-        gbc.fill = GridBagConstraints.NONE;
+        panel.add(fieldLabel, constraints);
 
-        panel.add(new JLabel(label), gbc);
+        constraints.gridx = 1;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.weightx = 1;
 
-        gbc.gridx = 1;
-        gbc.weightx = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        panel.add(component, gbc);
+        panel.add(component, constraints);
     }
 
-    // Get selected category
     public String getSelectedCategory() {
         return (String) categoryBox.getSelectedItem();
     }
 
-    // Get entered value
     public String getValueInput() {
-        return valueField.getText().trim();
+        return valueField.getText();
     }
 
     public JButton getAddButton() {
@@ -208,39 +245,39 @@ public class LookupView extends JPanel {
         return categoryBox;
     }
 
-    // Get selected item ID
     public int getSelectedItemId() {
-
         int selectedRow = lookupTable.getSelectedRow();
 
         if (selectedRow == -1) {
             return -1;
         }
 
-        int modelRow =
-                lookupTable.convertRowIndexToModel(selectedRow);
-
-        return (int) tableModel.getValueAt(modelRow, 0);
+        return (int) tableModel.getValueAt(selectedRow, 0);
     }
 
-    // Display lookup items in the table
     public void displayItems(ArrayList<LookupItem> items) {
+        currentItems = new ArrayList<>(items);
+        filterItems();
+    }
+
+    private void filterItems() {
+        String search = searchField.getText().trim().toLowerCase();
 
         tableModel.setRowCount(0);
 
-        for (LookupItem item : items) {
-
-            tableModel.addRow(new Object[]{
-                    item.getId(),
-                    item.getValue()
-            });
+        for (LookupItem item : currentItems) {
+            if (String.valueOf(item.getId()).contains(search)
+                    || item.getValue().toLowerCase().contains(search)) {
+                tableModel.addRow(new Object[]{
+                        item.getId(),
+                        item.getValue()
+                });
+            }
         }
     }
 
-    // Clear input and selection
     public void clearInput() {
-
-        lookupTable.clearSelection();
         valueField.setText("");
+        lookupTable.clearSelection();
     }
 }

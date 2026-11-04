@@ -1,3 +1,4 @@
+
 package repository;
 
 import com.mongodb.client.MongoCollection;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Sorts.ascending;
+import static com.mongodb.client.model.Sorts.descending;
 
 public class DonationRepository {
 
@@ -41,6 +43,16 @@ public class DonationRepository {
         donations.createIndex(
                 new Document("donorId", 1)
         );
+
+        Document highestDonation = donations.find()
+                .sort(descending("donationId"))
+                .first();
+
+        int highestExistingId = highestDonation == null
+                ? 0
+                : highestDonation.getInteger("donationId", 0);
+
+        initializeIdCounter(highestExistingId);
     }
 
     public Donation addDonation(
@@ -50,6 +62,27 @@ public class DonationRepository {
             String method,
             String itemName,
             int quantity) {
+
+        return addDonation(
+                donor, amount, type, method,
+                itemName, quantity,
+                "", "", "", "", "", false
+        );
+    }
+
+    public Donation addDonation(
+            Donor donor,
+            double amount,
+            String type,
+            String method,
+            String itemName,
+            int quantity,
+            String paymentEmail,
+            String paymentReference,
+            String bankName,
+            String checkNumber,
+            String accountHolder,
+            boolean taxInfoSelected) {
 
         if (donor == null) {
             throw new IllegalArgumentException("Donor is required.");
@@ -63,9 +96,19 @@ public class DonationRepository {
 
         Donation donation = new Donation(donationId, donor, amount, type, method);
 
-        if (method.equalsIgnoreCase("In-Kind")) {
+        if ("In-Kind".equalsIgnoreCase(method)) {
             donation.setInKindDetails(itemName, quantity);
         }
+
+        if ("Online".equalsIgnoreCase(method)) {
+            donation.setOnlineDetails(paymentEmail, paymentReference);
+        }
+
+        if ("Check".equalsIgnoreCase(method)) {
+            donation.setCheckDetails(bankName, checkNumber, accountHolder);
+        }
+
+        donation.setTaxInfoSelected(taxInfoSelected);
 
         Document document = new Document("donationId", donationId)
                 .append("donorId", donor.getId())
@@ -73,7 +116,13 @@ public class DonationRepository {
                 .append("donationType", type)
                 .append("donationMethod", method)
                 .append("itemName", donation.getItemName())
-                .append("quantity", donation.getQuantity());
+                .append("quantity", donation.getQuantity())
+                .append("paymentEmail", donation.getPaymentEmail())
+                .append("paymentReference", donation.getPaymentReference())
+                .append("bankName", donation.getBankName())
+                .append("checkNumber", donation.getCheckNumber())
+                .append("accountHolder", donation.getAccountHolder())
+                .append("taxInfoSelected", donation.isTaxInfoSelected());
 
         donations.insertOne(document);
 
@@ -121,6 +170,35 @@ public class DonationRepository {
         return result;
     }
 
+    public boolean updateDonation(Donation donation) {
+
+        if (donation == null || donation.getDonor() == null) {
+            throw new IllegalArgumentException("Donation and donor are required.");
+        }
+
+        if (donorRepository.findDonorById(donation.getDonor().getId()) == null) {
+            throw new IllegalArgumentException("Donor does not exist in the database.");
+        }
+
+        Document updatedDonation = new Document("donorId", donation.getDonor().getId())
+                .append("amount", donation.getAmount())
+                .append("donationType", donation.getDonationType())
+                .append("donationMethod", donation.getDonationMethod())
+                .append("itemName", donation.getItemName())
+                .append("quantity", donation.getQuantity())
+                .append("paymentEmail", donation.getPaymentEmail())
+                .append("paymentReference", donation.getPaymentReference())
+                .append("bankName", donation.getBankName())
+                .append("checkNumber", donation.getCheckNumber())
+                .append("accountHolder", donation.getAccountHolder())
+                .append("taxInfoSelected", donation.isTaxInfoSelected());
+
+        return donations.updateOne(
+                eq("donationId", donation.getDonationId()),
+                new Document("$set", updatedDonation)
+        ).getMatchedCount() > 0;
+    }
+
     public boolean deleteDonation(int donationId) {
 
         return donations.deleteOne(eq("donationId", donationId)).getDeletedCount() > 0;
@@ -130,8 +208,7 @@ public class DonationRepository {
 
         counters.updateOne(
                 eq("_id", "donation"),
-                new Document(
-                        "$max",
+                new Document("$max",
                         new Document("sequence", highestExistingId)
                 ),
                 new UpdateOptions().upsert(true)
@@ -143,7 +220,12 @@ public class DonationRepository {
         double total = 0;
 
         for (Document document : donations.find()) {
-            total += document.getDouble("amount");
+
+            Number amount = document.get("amount", Number.class);
+
+            if (amount != null) {
+                total += amount.doubleValue();
+            }
         }
 
         return total;
@@ -175,20 +257,51 @@ public class DonationRepository {
             return null;
         }
 
+        Number amount = document.get("amount", Number.class);
+
         Donation donation = new Donation(
                 document.getInteger("donationId"),
                 donor,
-                document.getDouble("amount"),
+                amount == null ? 0 : amount.doubleValue(),
                 document.getString("donationType"),
                 document.getString("donationMethod")
         );
 
         String method = document.getString("donationMethod");
 
-        if (method != null && method.equalsIgnoreCase("In-Kind")) {
-            donation.setInKindDetails(document.getString("itemName"), document.getInteger("quantity"));
+        if ("In-Kind".equalsIgnoreCase(method)) {
+
+            String itemName = document.getString("itemName");
+            Number quantity = document.get("quantity", Number.class);
+
+            donation.setInKindDetails(itemName == null ? "" : itemName, quantity == null ? 0 : quantity.intValue());
         }
 
+        if ("Online".equalsIgnoreCase(method)) {
+
+            donation.setOnlineDetails(getStringOrEmpty(document, "paymentEmail"), getStringOrEmpty(document, "paymentReference"));
+        }
+
+        if ("Check".equalsIgnoreCase(method)) {
+
+            donation.setCheckDetails(
+                    getStringOrEmpty(document, "bankName"),
+                    getStringOrEmpty(document, "checkNumber"),
+                    getStringOrEmpty(document, "accountHolder")
+            );
+        }
+
+        donation.setTaxInfoSelected(
+                document.getBoolean("taxInfoSelected", false)
+        );
+
         return donation;
+    }
+
+    private String getStringOrEmpty(Document document, String field) {
+
+        String value = document.getString(field);
+
+        return value == null ? "" : value;
     }
 }

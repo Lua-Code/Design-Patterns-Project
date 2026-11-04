@@ -144,4 +144,22 @@ public class BeneficiaryRepository {
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }
+
+    public boolean updateBeneficiary(
+            int id,
+            String name,
+            String email,
+            String phone,
+            ArrayList<String> needs) {
+
+        Document update = new Document("$set",
+                new Document("name", name)
+                        .append("email", email)
+                        .append("normalizedEmail", normalizeEmail(email))
+                        .append("phone", phone)
+                        .append("needs", needs));
+
+        return beneficiaries.updateOne(eq("id", id), update)
+                .getMatchedCount() > 0;
+    }
 }

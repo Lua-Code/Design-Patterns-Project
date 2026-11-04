@@ -20,6 +20,9 @@ public class DashboardView extends JFrame {
     private DonationController donationController;
     private DonationView donationView;
 
+    private DonorController donorController;
+    private DonorView donorView;
+
     private VolunteerController volunteerController;
     private VolunteerView volunteerView;
 
@@ -95,7 +98,6 @@ public class DashboardView extends JFrame {
             throw ex;
         }
 
-        initializeModules();
 
         showPage("Dashboard");
 
@@ -197,6 +199,7 @@ public class DashboardView extends JFrame {
         String[] pages = {
                 "Dashboard",
                 "Donations",
+                "Donors",
                 "Volunteers",
                 "Events",
                 "Beneficiaries",
@@ -328,6 +331,10 @@ public class DashboardView extends JFrame {
         donationView = new DonationView();
         donationController.connectView(donationView);
 
+        donorController = new DonorController();
+        donorView = new DonorView();
+        donorController.connectView(donorView);
+
         volunteerController = new VolunteerController();
         volunteerView = new VolunteerView();
         volunteerController.connectView(volunteerView);
@@ -348,6 +355,7 @@ public class DashboardView extends JFrame {
 
         // Apply the modern design to every module
         ModernTheme.apply(donationView);
+        ModernTheme.apply(donorView);
         ModernTheme.apply(volunteerView);
         ModernTheme.apply(eventView);
         ModernTheme.apply(beneficiaryView);
@@ -657,6 +665,15 @@ public class DashboardView extends JFrame {
 
                 mainPanel.add(
                         donationView,
+                        BorderLayout.CENTER
+                );
+
+                break;
+
+            case "Donors":
+
+                mainPanel.add(
+                        donorView,
                         BorderLayout.CENTER
                 );
 

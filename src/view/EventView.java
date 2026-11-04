@@ -1,6 +1,6 @@
-
 package view;
 
+import model.Event;
 import model.LookupItem;
 
 import javax.swing.*;
@@ -14,14 +14,19 @@ public class EventView extends JPanel {
     private JTextField dateField;
     private JTextField locationField;
     private JTextField capacityField;
-
     private JTextField attendeeCountField;
+    private JTextField searchField;
 
     private JTextArea descriptionArea;
     private JComboBox<String> eventTypeBox;
 
     private JButton createButton;
+    private JButton updateButton;
+    private JButton cancelButton;
     private JButton registerAttendeeButton;
+    private JButton deleteButton;
+    private JButton searchButton;
+    private JButton refreshButton;
 
     private JTable eventTable;
     private DefaultTableModel tableModel;
@@ -29,16 +34,14 @@ public class EventView extends JPanel {
     private final Color PRIMARY = new Color(36, 70, 91);
 
     public EventView() {
-
-        setLayout(new BorderLayout(8, 8));
+        setLayout(new BorderLayout(10, 10));
         setBackground(Color.WHITE);
-        setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
         JLabel title = new JLabel("Event Management");
-        title.setFont(new Font("Arial", Font.BOLD, 23));
+        title.setFont(new Font("Arial", Font.BOLD, 24));
         add(title, BorderLayout.NORTH);
 
-        // Event creation form
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
 
@@ -50,18 +53,14 @@ public class EventView extends JPanel {
         dateField.setToolTipText("YYYY-MM-DD");
 
         eventTypeBox = new JComboBox<>();
-        eventTypeBox.setPreferredSize(new Dimension(220, 26));
+        eventTypeBox.setPreferredSize(new Dimension(250, 28));
 
-        descriptionArea = new JTextArea(2, 18);
+        descriptionArea = new JTextArea(3, 18);
         descriptionArea.setLineWrap(true);
         descriptionArea.setWrapStyleWord(true);
 
-        JScrollPane descriptionScroll =
-                new JScrollPane(descriptionArea);
-
-        descriptionScroll.setPreferredSize(
-                new Dimension(220, 50)
-        );
+        JScrollPane descriptionScroll = new JScrollPane(descriptionArea);
+        descriptionScroll.setPreferredSize(new Dimension(250, 65));
 
         int row = 0;
 
@@ -72,131 +71,126 @@ public class EventView extends JPanel {
         addFormRow(formPanel, "Capacity:", capacityField, row++);
         addFormRow(formPanel, "Description:", descriptionScroll, row++);
 
-        // Create Event button
         createButton = new JButton("Create Event");
-        styleButton(createButton, 160);
+        updateButton = new JButton("Save Changes");
+        cancelButton = new JButton("Cancel Edit");
 
-        JPanel buttonPanel =
-                new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        styleButton(createButton, 150);
+        styleButton(updateButton, 150);
+        styleButton(cancelButton, 130);
 
+        updateButton.setVisible(false);
+        cancelButton.setVisible(false);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(Color.WHITE);
         buttonPanel.add(createButton);
-
-        JScrollPane formScroll = new JScrollPane(formPanel);
-        formScroll.setBorder(null);
-        formScroll.getVerticalScrollBar().setUnitIncrement(16);
+        buttonPanel.add(updateButton);
+        buttonPanel.add(cancelButton);
 
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBackground(Color.WHITE);
-
-        topPanel.add(formScroll, BorderLayout.CENTER);
+        topPanel.add(formPanel, BorderLayout.CENTER);
         topPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        // Event records table
+        searchField = createTextField();
+        searchField.setPreferredSize(new Dimension(250, 28));
+
+        searchButton = new JButton("Search");
+        refreshButton = new JButton("Refresh");
+
+        styleButton(searchButton, 100);
+        styleButton(refreshButton, 100);
+
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        searchPanel.setBackground(Color.WHITE);
+        searchPanel.add(new JLabel("Search by ID, Name, Type or Location:"));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        searchPanel.add(refreshButton);
+
         String[] columns = {
                 "ID", "Event Name", "Type", "Date",
                 "Location", "Capacity", "Registered"
         };
 
         tableModel = new DefaultTableModel(columns, 0) {
-
             @Override
-            public boolean isCellEditable(int r, int c) {
+            public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
 
         eventTable = new JTable(tableModel);
-        eventTable.setRowHeight(24);
-
+        eventTable.setRowHeight(26);
         eventTable.getTableHeader().setReorderingAllowed(false);
-        eventTable.setSelectionMode(
-                ListSelectionModel.SINGLE_SELECTION
-        );
+        eventTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         JScrollPane tableScroll = new JScrollPane(eventTable);
-
         tableScroll.setBorder(
                 BorderFactory.createTitledBorder("Events")
         );
 
-        // Multiple attendee registration
         attendeeCountField = new JTextField("1", 6);
-        attendeeCountField.setPreferredSize(
-                new Dimension(70, 26)
-        );
+        attendeeCountField.setPreferredSize(new Dimension(90, 28));
 
-        registerAttendeeButton =
-                new JButton("Register Attendees");
+        registerAttendeeButton = new JButton("Register Attendees");
+        deleteButton = new JButton("Delete Event");
 
-        styleButton(registerAttendeeButton, 170);
+        styleButton(registerAttendeeButton, 160);
+        styleButton(deleteButton, 150);
 
-        JPanel registrationPanel =
-                new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 3));
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        actionsPanel.setBackground(Color.WHITE);
+        actionsPanel.add(new JLabel("Number of Attendees:"));
+        actionsPanel.add(attendeeCountField);
+        actionsPanel.add(registerAttendeeButton);
+        actionsPanel.add(deleteButton);
 
-        registrationPanel.setBackground(Color.WHITE);
-
-        registrationPanel.add(new JLabel("Select Event"));
-
-        registrationPanel.add(
-                new JLabel("Number of Attendees:")
-        );
-
-        registrationPanel.add(attendeeCountField);
-        registrationPanel.add(registerAttendeeButton);
-
-        JPanel recordsPanel =
-                new JPanel(new BorderLayout(4, 4));
-
+        JPanel recordsPanel = new JPanel(new BorderLayout(5, 5));
         recordsPanel.setBackground(Color.WHITE);
-
+        recordsPanel.add(searchPanel, BorderLayout.NORTH);
         recordsPanel.add(tableScroll, BorderLayout.CENTER);
-        recordsPanel.add(registrationPanel, BorderLayout.SOUTH);
+        recordsPanel.add(actionsPanel, BorderLayout.SOUTH);
 
-        // Compact layout
         JSplitPane splitPane = new JSplitPane(
                 JSplitPane.VERTICAL_SPLIT,
                 topPanel,
                 recordsPanel
         );
 
-        splitPane.setResizeWeight(0.65);
+        splitPane.setResizeWeight(0.55);
         splitPane.setDividerSize(6);
         splitPane.setOneTouchExpandable(true);
 
-        topPanel.setMinimumSize(new Dimension(0, 170));
-        recordsPanel.setMinimumSize(new Dimension(0, 120));
-
         add(splitPane, BorderLayout.CENTER);
 
-        SwingUtilities.invokeLater(
-                () -> splitPane.setDividerLocation(0.65)
-        );
+        SwingUtilities.invokeLater(() -> splitPane.setDividerLocation(0.55));
     }
 
     private JTextField createTextField() {
-
         JTextField field = new JTextField(18);
-        field.setPreferredSize(new Dimension(220, 26));
-
+        field.setPreferredSize(new Dimension(250, 28));
         return field;
     }
 
     private void styleButton(JButton button, int width) {
-
         button.setBackground(PRIMARY);
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
-        button.setPreferredSize(new Dimension(width, 30));
+        button.setPreferredSize(new Dimension(width, 32));
     }
 
-    private void addFormRow(JPanel panel, String label,
-                            JComponent component, int row) {
-
+    private void addFormRow(
+            JPanel panel,
+            String label,
+            JComponent component,
+            int row
+    ) {
         GridBagConstraints gbc = new GridBagConstraints();
 
         gbc.gridy = row;
-        gbc.insets = new Insets(3, 5, 3, 5);
+        gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
 
         gbc.gridx = 0;
@@ -208,9 +202,7 @@ public class EventView extends JPanel {
         panel.add(component, gbc);
     }
 
-    // Dynamic event types
     public void loadEventTypes(ArrayList<LookupItem> items) {
-
         String previous = getEventType();
 
         eventTypeBox.removeAllItems();
@@ -221,6 +213,39 @@ public class EventView extends JPanel {
 
         if (previous != null) {
             eventTypeBox.setSelectedItem(previous);
+        }
+    }
+
+    public void loadEvent(Event event) {
+        nameField.setText(event.getEventName());
+        eventTypeBox.setSelectedItem(event.getEventType());
+        dateField.setText(event.getDate());
+        locationField.setText(event.getLocation());
+        capacityField.setText(String.valueOf(event.getCapacity()));
+        descriptionArea.setText(event.getDescription());
+
+        setEditingMode(true);
+    }
+
+    public void setEditingMode(boolean editing) {
+        createButton.setVisible(!editing);
+        updateButton.setVisible(editing);
+        cancelButton.setVisible(editing);
+    }
+
+    public void displayEvents(ArrayList<Event> events) {
+        tableModel.setRowCount(0);
+
+        for (Event event : events) {
+            addEventToTable(
+                    event.getEventId(),
+                    event.getEventName(),
+                    event.getEventType(),
+                    event.getDate(),
+                    event.getLocation(),
+                    event.getCapacity(),
+                    event.getRegisteredAttendees()
+            );
         }
     }
 
@@ -248,24 +273,52 @@ public class EventView extends JPanel {
         return capacityField.getText().trim();
     }
 
-    // Number of attendees entered by user
     public String getAttendeeCountInput() {
         return attendeeCountField.getText().trim();
+    }
+
+    public String getSearchInput() {
+        return searchField.getText().trim();
     }
 
     public JButton getCreateButton() {
         return createButton;
     }
 
+    public JButton getUpdateButton() {
+        return updateButton;
+    }
+
+    public JButton getCancelButton() {
+        return cancelButton;
+    }
+
     public JButton getRegisterAttendeeButton() {
         return registerAttendeeButton;
     }
 
-    public int getSelectedEventId() {
+    public JButton getDeleteButton() {
+        return deleteButton;
+    }
 
+    public JButton getSearchButton() {
+        return searchButton;
+    }
+
+    public JButton getRefreshButton() {
+        return refreshButton;
+    }
+
+    public JTable getEventTable() {
+        return eventTable;
+    }
+
+    public int getSelectedEventId() {
         int row = eventTable.getSelectedRow();
 
-        if (row == -1) return -1;
+        if (row == -1) {
+            return -1;
+        }
 
         int modelRow = eventTable.convertRowIndexToModel(row);
 
@@ -273,21 +326,22 @@ public class EventView extends JPanel {
     }
 
     public void addEventToTable(
-            int id, String name, String type, String date,
-            String location, int capacity, int registered) {
-
+            int id,
+            String name,
+            String type,
+            String date,
+            String location,
+            int capacity,
+            int registered
+    ) {
         tableModel.addRow(new Object[]{
-                id, name, type, date,
-                location, capacity, registered
+                id, name, type, date, location, capacity, registered
         });
     }
 
     public void updateAttendeeCount(int id, int count) {
-
         for (int row = 0; row < tableModel.getRowCount(); row++) {
-
             if ((int) tableModel.getValueAt(row, 0) == id) {
-
                 tableModel.setValueAt(count, row, 6);
                 break;
             }
@@ -299,7 +353,6 @@ public class EventView extends JPanel {
     }
 
     public void clearFields() {
-
         nameField.setText("");
         dateField.setText("");
         locationField.setText("");
@@ -309,5 +362,7 @@ public class EventView extends JPanel {
         if (eventTypeBox.getItemCount() > 0) {
             eventTypeBox.setSelectedIndex(0);
         }
+
+        setEditingMode(false);
     }
 }
