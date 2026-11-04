@@ -1,4 +1,3 @@
-
 package singleton;
 
 public class OrganizationManager {

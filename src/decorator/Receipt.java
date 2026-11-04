@@ -1,4 +1,3 @@
-
 package decorator;
 
 public interface Receipt {

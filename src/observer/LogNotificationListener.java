@@ -1,4 +1,3 @@
-
 package observer;
 
 public class LogNotificationListener implements EventListener {

@@ -17,9 +17,7 @@ public class LookupController {
     }
 
     public boolean isProtectedItem(LookupItem item) {
-        return item != null
-                && "Donation Types".equals(item.getCategory())
-                && "Money".equalsIgnoreCase(item.getValue());
+        return item != null && "Donation Types".equals(item.getCategory()) && "Money".equalsIgnoreCase(item.getValue());
     }
 
     public void addLookupItem(String category, String value) {
@@ -29,9 +27,7 @@ public class LookupController {
         String cleanValue = value.trim();
 
         if (lookupRepository.findLookupItem(category, cleanValue) != null) {
-            throw new IllegalArgumentException(
-                    "This lookup item already exists in this category"
-            );
+            throw new IllegalArgumentException("This lookup item already exists in this category");
         }
 
         lookupRepository.addLookupItem(category, cleanValue);
@@ -60,32 +56,19 @@ public class LookupController {
         }
 
         if (isProtectedItem(existingItem)) {
-            throw new IllegalArgumentException(
-                    "The Money donation type cannot be modified"
-            );
+            throw new IllegalArgumentException("The Money donation type cannot be modified");
         }
 
         String cleanValue = newValue.trim();
 
-        if (!existingItem.getValue().equalsIgnoreCase(cleanValue)
-                && lookupRepository.isLookupItemInUse(
-                existingItem.getCategory(),
-                existingItem.getValue()
-        )) {
-            throw new IllegalArgumentException(
-                    "This lookup item is currently used by existing records and cannot be renamed"
-            );
+        if (!existingItem.getValue().equalsIgnoreCase(cleanValue) && lookupRepository.isLookupItemInUse(existingItem.getCategory(), existingItem.getValue())) {
+            throw new IllegalArgumentException("This lookup item is currently used by existing records and cannot be renamed");
         }
 
-        LookupItem duplicate = lookupRepository.findLookupItem(
-                existingItem.getCategory(),
-                cleanValue
-        );
+        LookupItem duplicate = lookupRepository.findLookupItem(existingItem.getCategory(), cleanValue);
 
         if (duplicate != null && duplicate.getId() != id) {
-            throw new IllegalArgumentException(
-                    "This lookup item already exists in this category"
-            );
+            throw new IllegalArgumentException("This lookup item already exists in this category");
         }
 
         lookupRepository.updateLookupItem(id, cleanValue);
@@ -99,18 +82,12 @@ public class LookupController {
         }
 
         if (isProtectedItem(existingItem)) {
-            throw new IllegalArgumentException(
-                    "The Money donation type cannot be deleted"
-            );
+            throw new IllegalArgumentException("The Money donation type cannot be deleted");
         }
 
-        if (lookupRepository.isLookupItemInUse(
-                existingItem.getCategory(),
-                existingItem.getValue()
+        if (lookupRepository.isLookupItemInUse(existingItem.getCategory(), existingItem.getValue()
         )) {
-            throw new IllegalArgumentException(
-                    "This lookup item is currently used by existing records and cannot be deleted"
-            );
+            throw new IllegalArgumentException("This lookup item is currently used by existing records and cannot be deleted");
         }
 
         lookupRepository.deleteLookupItem(id);
@@ -132,17 +109,13 @@ public class LookupController {
         }
 
         if (value.trim().length() > 100) {
-            throw new IllegalArgumentException(
-                    "Lookup value cannot exceed 100 characters"
-            );
+            throw new IllegalArgumentException("Lookup value cannot exceed 100 characters");
         }
     }
 
     public void connectView(LookupView view) {
         Runnable refresh = () -> {
-            view.displayItems(
-                    getItemsByCategory(view.getSelectedCategory())
-            );
+            view.displayItems(getItemsByCategory(view.getSelectedCategory()));
             view.clearInput();
         };
 
@@ -152,24 +125,14 @@ public class LookupController {
 
         view.getAddButton().addActionListener(event -> {
             try {
-                addLookupItem(
-                        view.getSelectedCategory(),
-                        view.getValueInput()
+                addLookupItem(view.getSelectedCategory(), view.getValueInput()
                 );
 
                 refresh.run();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Lookup item added successfully"
-                );
+                JOptionPane.showMessageDialog(view, "Lookup item added successfully");
             } catch (Exception exception) {
-                JOptionPane.showMessageDialog(
-                        view,
-                        exception.getMessage(),
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, exception.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -178,26 +141,16 @@ public class LookupController {
                 int selectedId = view.getSelectedItemId();
 
                 if (selectedId == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a lookup item to update"
-                    );
+                    throw new IllegalArgumentException("Please select a lookup item to update");
                 }
 
                 updateLookupItem(selectedId, view.getValueInput());
 
                 refresh.run();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Lookup item updated successfully"
-                );
+                JOptionPane.showMessageDialog(view, "Lookup item updated successfully");
             } catch (Exception exception) {
-                JOptionPane.showMessageDialog(
-                        view,
-                        exception.getMessage(),
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, exception.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -206,21 +159,16 @@ public class LookupController {
                 int selectedId = view.getSelectedItemId();
 
                 if (selectedId == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a lookup item to delete"
-                    );
+                    throw new IllegalArgumentException("Please select a lookup item to delete");
                 }
 
                 LookupItem selectedItem = findLookupItem(selectedId);
 
                 if (isProtectedItem(selectedItem)) {
-                    throw new IllegalArgumentException(
-                            "The Money donation type cannot be deleted"
-                    );
+                    throw new IllegalArgumentException("The Money donation type cannot be deleted");
                 }
 
-                int confirmation = JOptionPane.showConfirmDialog(
-                        view,
+                int confirmation = JOptionPane.showConfirmDialog(view,
                         "Are you sure you want to delete this lookup item?",
                         "Confirm Deletion",
                         JOptionPane.YES_NO_OPTION
@@ -234,17 +182,9 @@ public class LookupController {
 
                 refresh.run();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Lookup item deleted successfully"
-                );
+                JOptionPane.showMessageDialog(view, "Lookup item deleted successfully");
             } catch (Exception exception) {
-                JOptionPane.showMessageDialog(
-                        view,
-                        exception.getMessage(),
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, exception.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
     }

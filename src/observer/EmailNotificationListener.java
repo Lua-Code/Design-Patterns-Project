@@ -1,4 +1,3 @@
-
 package observer;
 
 public class EmailNotificationListener implements EventListener {

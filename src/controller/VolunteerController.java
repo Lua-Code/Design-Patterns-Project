@@ -26,14 +26,10 @@ public class VolunteerController {
         validateVolunteer(name, email, phone, skills, availability);
 
         if (volunteerRepository.findVolunteerByEmail(email) != null) {
-            throw new IllegalArgumentException(
-                    "A volunteer with this email already exists."
-            );
+            throw new IllegalArgumentException("A volunteer with this email already exists.");
         }
 
-        return volunteerRepository.addVolunteer(
-                name, email, phone, skills, availability
-        );
+        return volunteerRepository.addVolunteer(name, email, phone, skills, availability);
     }
 
     public void updateVolunteer(
@@ -55,52 +51,31 @@ public class VolunteerController {
         Volunteer emailMatch = volunteerRepository.findVolunteerByEmail(email);
 
         if (emailMatch != null && emailMatch.getId() != id) {
-            throw new IllegalArgumentException(
-                    "A volunteer with this email already exists."
-            );
+            throw new IllegalArgumentException("A volunteer with this email already exists.");
         }
 
-        volunteerRepository.updateVolunteer(
-                id, name, email, phone, skills, availability
-        );
+        volunteerRepository.updateVolunteer(id, name, email, phone, skills, availability);
     }
 
-    private void validateVolunteer(
-            String name,
-            String email,
-            String phone,
-            ArrayList<String> skills,
-            String availability
-    ) {
-        if (name == null || name.length() < 2 || name.length() > 100
-                || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
-            throw new IllegalArgumentException(
-                    "Please enter a valid volunteer name."
-            );
+    private void validateVolunteer(String name, String email, String phone, ArrayList<String> skills, String availability) {
+        if (name == null || name.length() < 2 || name.length() > 100 || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
+            throw new IllegalArgumentException("Please enter a valid volunteer name.");
         }
 
-        if (email == null || !email.matches(
-                "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-        )) {
+        if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
             throw new IllegalArgumentException("Please enter a valid email.");
         }
 
         if (phone == null || !phone.matches("^01[0125][0-9]{8}$")) {
-            throw new IllegalArgumentException(
-                    "Please enter a valid Egyptian mobile number."
-            );
+            throw new IllegalArgumentException("Please enter a valid Egyptian mobile number.");
         }
 
         if (skills == null || skills.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Please select at least one skill."
-            );
+            throw new IllegalArgumentException("Please select at least one skill.");
         }
 
         if (availability == null || availability.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Please select availability."
-            );
+            throw new IllegalArgumentException("Please select availability.");
         }
     }
 
@@ -114,9 +89,7 @@ public class VolunteerController {
 
     public void addVolunteerHours(int id, double hours) {
         if (!Double.isFinite(hours) || hours <= 0) {
-            throw new IllegalArgumentException(
-                    "Volunteer hours must be greater than zero."
-            );
+            throw new IllegalArgumentException("Volunteer hours must be greater than zero.");
         }
 
         if (findVolunteer(id) == null) {
@@ -157,10 +130,7 @@ public class VolunteerController {
                 refreshVolunteers(view);
                 view.clearFields();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Volunteer registered and saved successfully!"
-                );
+                JOptionPane.showMessageDialog(view, "Volunteer registered and saved successfully!");
 
             } catch (RuntimeException ex) {
                 showError(view, ex.getMessage());
@@ -170,9 +140,7 @@ public class VolunteerController {
         view.getUpdateButton().addActionListener(e -> {
             try {
                 if (editingVolunteerId == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a volunteer to update."
-                    );
+                    throw new IllegalArgumentException("Please select a volunteer to update.");
                 }
 
                 updateVolunteer(
@@ -188,9 +156,7 @@ public class VolunteerController {
                 view.clearFields();
                 editingVolunteerId = -1;
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Volunteer updated successfully!"
+                JOptionPane.showMessageDialog(view, "Volunteer updated successfully!"
                 );
 
             } catch (RuntimeException ex) {
@@ -209,9 +175,7 @@ public class VolunteerController {
                 int id = view.getSelectedVolunteerId();
 
                 if (id == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a volunteer to delete."
-                    );
+                    throw new IllegalArgumentException("Please select a volunteer to delete.");
                 }
 
                 int choice = JOptionPane.showConfirmDialog(
@@ -227,19 +191,14 @@ public class VolunteerController {
                 }
 
                 if (!volunteerRepository.deleteVolunteer(id)) {
-                    throw new IllegalArgumentException(
-                            "Volunteer could not be deleted."
-                    );
+                    throw new IllegalArgumentException("Volunteer could not be deleted.");
                 }
 
                 editingVolunteerId = -1;
                 view.clearFields();
                 refreshVolunteers(view);
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Volunteer deleted successfully!"
-                );
+                JOptionPane.showMessageDialog(view, "Volunteer deleted successfully!");
 
             } catch (RuntimeException ex) {
                 showError(view, ex.getMessage());
@@ -251,9 +210,7 @@ public class VolunteerController {
                 int id = view.getSelectedVolunteerId();
 
                 if (id == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a volunteer."
-                    );
+                    throw new IllegalArgumentException("Please select a volunteer.");
                 }
 
                 double hours;
@@ -261,9 +218,7 @@ public class VolunteerController {
                 try {
                     hours = Double.parseDouble(view.getHoursInput());
                 } catch (NumberFormatException ex) {
-                    throw new IllegalArgumentException(
-                            "Please enter valid numeric hours."
-                    );
+                    throw new IllegalArgumentException("Please enter valid numeric hours.");
                 }
 
                 addVolunteerHours(id, hours);
@@ -271,10 +226,7 @@ public class VolunteerController {
                 refreshVolunteers(view);
                 view.clearHoursField();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Volunteer hours updated and saved!"
-                );
+                JOptionPane.showMessageDialog(view, "Volunteer hours updated and saved!");
 
             } catch (RuntimeException ex) {
                 showError(view, ex.getMessage());
@@ -334,11 +286,6 @@ public class VolunteerController {
     }
 
     private void showError(VolunteerView view, String message) {
-        JOptionPane.showMessageDialog(
-                view,
-                message,
-                "Volunteer Error",
-                JOptionPane.ERROR_MESSAGE
-        );
+        JOptionPane.showMessageDialog(view, message, "Volunteer Error", JOptionPane.ERROR_MESSAGE);
     }
 }

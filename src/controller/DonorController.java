@@ -42,49 +42,30 @@ public class DonorController {
                     int id = view.getSelectedDonorId();
 
                     if (id == -1) {
-                        throw new IllegalArgumentException(
-                                "Please select a donor to update"
-                        );
+                        throw new IllegalArgumentException("Please select a donor to update");
                     }
 
                     if (existing != null && existing.getId() != id) {
-                        throw new IllegalArgumentException(
-                                "Another donor is already registered with this email"
-                        );
+                        throw new IllegalArgumentException("Another donor is already registered with this email");
                     }
 
-                    boolean updated = donorRepository.updateDonor(
-                            id,
-                            name,
-                            email,
-                            phone
-                    );
+                    boolean updated = donorRepository.updateDonor(id, name, email, phone);
 
                     if (!updated) {
-                        throw new IllegalStateException(
-                                "Could not update donor"
-                        );
+                        throw new IllegalStateException("Could not update donor");
                     }
 
-                    JOptionPane.showMessageDialog(
-                            view,
-                            "Donor updated successfully"
-                    );
+                    JOptionPane.showMessageDialog(view, "Donor updated successfully");
 
                 } else {
 
                     if (existing != null) {
-                        throw new IllegalArgumentException(
-                                "A donor with this email already exists"
-                        );
+                        throw new IllegalArgumentException("A donor with this email already exists");
                     }
 
                     donorRepository.addDonor(name, email, phone);
 
-                    JOptionPane.showMessageDialog(
-                            view,
-                            "Donor registered successfully"
-                    );
+                    JOptionPane.showMessageDialog(view, "Donor registered successfully");
                 }
 
                 refreshDonorTable(view);
@@ -92,12 +73,7 @@ public class DonorController {
 
             } catch (Exception ex) {
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        ex.getMessage(),
-                        "Donor Management",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, ex.getMessage(), "Donor Management", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -131,18 +107,13 @@ public class DonorController {
                 int id = view.getSelectedDonorId();
 
                 if (id == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a donor to delete"
-                    );
+                    throw new IllegalArgumentException("Please select a donor to delete");
                 }
 
-                ArrayList<Donation> donations =
-                        donationRepository.findDonationsByDonorId(id);
+                ArrayList<Donation> donations = donationRepository.findDonationsByDonorId(id);
 
                 if (!donations.isEmpty()) {
-                    throw new IllegalArgumentException(
-                            "This donor has existing donations and cannot be deleted"
-                    );
+                    throw new IllegalArgumentException("This donor has existing donations and cannot be deleted");
                 }
 
                 int choice = JOptionPane.showConfirmDialog(
@@ -159,14 +130,10 @@ public class DonorController {
                 boolean deleted = donorRepository.deleteDonor(id);
 
                 if (!deleted) {
-                    throw new IllegalStateException(
-                            "Could not delete donor"
-                    );
+                    throw new IllegalStateException("Could not delete donor");
                 }
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Donor deleted successfully"
+                JOptionPane.showMessageDialog(view, "Donor deleted successfully"
                 );
 
                 refreshDonorTable(view);
@@ -193,29 +160,18 @@ public class DonorController {
         });
     }
 
-    private void validateDonor(
-            String name,
-            String email,
-            String phone) {
+    private void validateDonor(String name, String email, String phone) {
 
         if (name == null || name.trim().length() < 2 || name.trim().length() > 100) {
-            throw new IllegalArgumentException(
-                    "Name must be between 2 and 100 characters"
-            );
+            throw new IllegalArgumentException("Name must be between 2 and 100 characters");
         }
 
-        if (email == null ||
-                !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-
-            throw new IllegalArgumentException(
-                    "Please enter a valid email address"
-            );
+        if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new IllegalArgumentException("Please enter a valid email address");
         }
 
         if (phone == null || !phone.matches("[0-9+() -]{7,20}")) {
-            throw new IllegalArgumentException(
-                    "Please enter a valid phone number"
-            );
+            throw new IllegalArgumentException("Please enter a valid phone number");
         }
     }
 
@@ -227,18 +183,12 @@ public class DonorController {
 
         for (Donor donor : donorRepository.getAllDonors()) {
 
-            boolean matches =
-                    String.valueOf(donor.getId()).contains(search) ||
+            boolean matches = String.valueOf(donor.getId()).contains(search) ||
                             donor.getName().toLowerCase().contains(search) ||
                             donor.getEmail().toLowerCase().contains(search);
 
             if (matches) {
-                view.addDonorToTable(
-                        donor.getId(),
-                        donor.getName(),
-                        donor.getEmail(),
-                        donor.getPhone()
-                );
+                view.addDonorToTable(donor.getId(), donor.getName(), donor.getEmail(), donor.getPhone());
             }
         }
     }
@@ -249,12 +199,7 @@ public class DonorController {
 
         for (Donor donor : donorRepository.getAllDonors()) {
 
-            view.addDonorToTable(
-                    donor.getId(),
-                    donor.getName(),
-                    donor.getEmail(),
-                    donor.getPhone()
-            );
+            view.addDonorToTable(donor.getId(), donor.getName(), donor.getEmail(), donor.getPhone());
         }
     }
 }

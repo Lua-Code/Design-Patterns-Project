@@ -1,4 +1,3 @@
-
 package decorator;
 
 import model.Donation;

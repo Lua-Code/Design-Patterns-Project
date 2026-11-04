@@ -1,4 +1,3 @@
-
 package strategy;
 
 public class DonationProcessor {

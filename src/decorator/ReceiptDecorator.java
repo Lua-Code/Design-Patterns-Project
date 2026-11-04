@@ -1,4 +1,3 @@
-
 package decorator;
 
 public abstract class ReceiptDecorator implements Receipt {

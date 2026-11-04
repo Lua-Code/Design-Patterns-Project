@@ -1,4 +1,3 @@
-
 package observer;
 
 import java.util.ArrayList;

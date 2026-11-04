@@ -1,4 +1,3 @@
-
 package strategy;
 
 public class CheckDonation implements DonationStrategy {
