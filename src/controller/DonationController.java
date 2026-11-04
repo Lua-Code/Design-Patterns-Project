@@ -49,9 +49,7 @@ public class DonationController {
         }
 
         if (amount == 0 && !method.equals("In-Kind")) {
-            throw new IllegalArgumentException(
-                    "Monetary donations must be greater than zero."
-            );
+            throw new IllegalArgumentException("Monetary donations must be greater than zero.");
         }
 
         return donationRepository.addDonation(
@@ -77,26 +75,15 @@ public class DonationController {
 
     private void validateAccountHolder(String name) {
 
-        if (name == null || name.length() < 2
-                || name.length() > 100
-                || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
-
-            throw new IllegalArgumentException(
-                    "Enter a valid account holder name."
-            );
+        if (name == null || name.length() < 2 || name.length() > 100 || !name.matches("[\\p{L}][\\p{L} .'-]*")) {
+            throw new IllegalArgumentException("Enter a valid account holder name.");
         }
     }
 
     private void validatePaymentEmail(String email) {
 
-        if (email == null ||
-                !email.matches(
-                        "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
-                )) {
-
-            throw new IllegalArgumentException(
-                    "Please enter a valid payment email address."
-            );
+        if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new IllegalArgumentException("Please enter a valid payment email address.");
         }
     }
 
@@ -108,83 +95,53 @@ public class DonationController {
             amount = Double.parseDouble(input);
 
         } catch (NumberFormatException | NullPointerException ex) {
-
-            throw new IllegalArgumentException(
-                    "Amount must be a valid number."
-            );
+            throw new IllegalArgumentException("Amount must be a valid number.");
         }
 
         if (!Double.isFinite(amount) || amount < 0) {
-            throw new IllegalArgumentException(
-                    "Amount cannot be negative or invalid."
-            );
+            throw new IllegalArgumentException("Amount cannot be negative or invalid.");
         }
 
         if (!method.equals("In-Kind") && amount == 0) {
-            throw new IllegalArgumentException(
-                    "Monetary donation must be greater than zero."
-            );
+            throw new IllegalArgumentException("Monetary donation must be greater than zero.");
         }
 
         return amount;
     }
 
-    private DonationStrategy createStrategy(
-            DonationView view, String method) {
-
+    private DonationStrategy createStrategy(DonationView view, String method) {
         switch (method) {
-
             case "Online":
 
                 validatePaymentEmail(view.getPaymentEmail());
 
-                if (!view.getPaymentReference()
-                        .matches("[A-Za-z0-9_-]{3,50}")) {
+                if (!view.getPaymentReference().matches("[A-Za-z0-9_-]{3,50}")) {
 
-                    throw new IllegalArgumentException(
-                            "Enter a valid payment reference."
-                    );
+                    throw new IllegalArgumentException("Enter a valid payment reference.");
                 }
 
-                return new OnlineDonation(
-                        view.getPaymentEmail(),
-                        view.getPaymentReference()
-                );
+                return new OnlineDonation(view.getPaymentEmail(), view.getPaymentReference());
 
             case "Check":
+                if (view.getBankName().isBlank() || view.getBankName().length() > 100) {
 
-                if (view.getBankName().isBlank()
-                        || view.getBankName().length() > 100) {
-
-                    throw new IllegalArgumentException(
-                            "Enter a valid bank name."
-                    );
+                    throw new IllegalArgumentException("Enter a valid bank name.");
                 }
 
-                if (!view.getCheckNumber()
-                        .matches("[A-Za-z0-9-]{3,30}")) {
-
-                    throw new IllegalArgumentException(
-                            "Enter a valid check number."
-                    );
+                if (!view.getCheckNumber().matches("[A-Za-z0-9-]{3,30}")) {
+                    throw new IllegalArgumentException("Enter a valid check number.");
                 }
 
                 validateAccountHolder(view.getAccountHolder());
 
-                return new CheckDonation(
-                        view.getBankName(),
-                        view.getCheckNumber(),
-                        view.getAccountHolder()
-                );
+                return new CheckDonation(view.getBankName(), view.getCheckNumber(), view.getAccountHolder());
 
             case "In-Kind":
 
                 String itemName = view.getItemName();
 
                 if (itemName.isBlank() || itemName.length() > 100) {
-                    throw new IllegalArgumentException(
-                            "Enter a valid item name."
-                    );
+                    throw new IllegalArgumentException("Enter a valid item name.");
                 }
 
                 int quantity;
@@ -193,25 +150,18 @@ public class DonationController {
                     quantity = Integer.parseInt(view.getQuantity());
 
                 } catch (NumberFormatException ex) {
-
-                    throw new IllegalArgumentException(
-                            "Quantity must be a whole number."
-                    );
+                    throw new IllegalArgumentException("Quantity must be a whole number.");
                 }
 
                 if (quantity <= 0) {
-                    throw new IllegalArgumentException(
-                            "Quantity must be greater than zero."
-                    );
+                    throw new IllegalArgumentException("Quantity must be greater than zero.");
                 }
 
                 return new InKindDonation(itemName, quantity);
 
             default:
 
-                throw new IllegalArgumentException(
-                        "Invalid donation method."
-                );
+                throw new IllegalArgumentException("Invalid donation method.");
         }
     }
 
@@ -226,29 +176,21 @@ public class DonationController {
             try {
 
                 if (view.isEditing()) {
-                    throw new IllegalArgumentException(
-                            "You are editing a donation. Use Save Changes instead."
-                    );
+                    throw new IllegalArgumentException("You are editing a donation. Use Save Changes instead.");
                 }
 
                 // Retrieve the selected registered donor
                 Donor selectedDonor = view.getSelectedDonor();
 
                 if (selectedDonor == null) {
-                    throw new IllegalArgumentException(
-                            "Please select a registered donor."
-                    );
+                    throw new IllegalArgumentException("Please select a registered donor.");
                 }
 
                 // Retrieve the latest donor information from the database
-                Donor donor = donorRepository.findDonorById(
-                        selectedDonor.getId()
-                );
+                Donor donor = donorRepository.findDonorById(selectedDonor.getId());
 
                 if (donor == null) {
-                    throw new IllegalArgumentException(
-                            "Selected donor no longer exists. Please refresh the donor list."
-                    );
+                    throw new IllegalArgumentException("Selected donor no longer exists. Please refresh the donor list.");
                 }
 
                 String name = donor.getName();
@@ -258,23 +200,15 @@ public class DonationController {
                 String type = view.getDonationType();
 
                 if (method == null || type == null || type.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "Select a valid donation method and type."
-                    );
+                    throw new IllegalArgumentException("Select a valid donation method and type.");
                 }
 
-                if ((method.equals("Online") || method.equals("Check"))
-                        && !type.equalsIgnoreCase("Money")) {
-
-                    throw new IllegalArgumentException(
-                            "Monetary donations must use the Money type."
-                    );
+                if ((method.equals("Online") || method.equals("Check")) && !type.equalsIgnoreCase("Money")) {
+                    throw new IllegalArgumentException("Monetary donations must use the Money type.");
                 }
 
                 if (method.equals("In-Kind") && type.equalsIgnoreCase("Money")) {
-                    throw new IllegalArgumentException(
-                            "Select a physical donation type."
-                    );
+                    throw new IllegalArgumentException("Select a physical donation type.");
                 }
 
                 double amount = validateAmount(view.getAmount(), method);
@@ -285,9 +219,7 @@ public class DonationController {
                 DonationProcessor processor = new DonationProcessor(strategy);
 
                 if (!processor.processDonation(amount)) {
-                    throw new IllegalArgumentException(
-                            "Donation could not be accepted."
-                    );
+                    throw new IllegalArgumentException("Donation could not be accepted.");
                 }
 
                 String itemName = "";
@@ -313,15 +245,9 @@ public class DonationController {
                 // Observer Pattern
                 EventManager manager = new EventManager("donation");
 
-                manager.subscribe(
-                        "donation",
-                        new EmailNotificationListener(email)
-                );
+                manager.subscribe("donation", new EmailNotificationListener(email));
 
-                manager.subscribe(
-                        "donation",
-                        new LogNotificationListener("DonationLog")
-                );
+                manager.subscribe("donation", new LogNotificationListener("DonationLog"));
 
                 String description = method.equals("In-Kind")
                         ? name + " donated " + quantity + " x " + itemName + "."
@@ -332,11 +258,7 @@ public class DonationController {
                     manager.notify("donation", description);
 
                 } catch (RuntimeException notificationError) {
-
-                    System.err.println(
-                            "Donation saved, but notification failed: "
-                                    + notificationError.getMessage()
-                    );
+                    System.err.println("Donation saved, but notification failed: " + notificationError.getMessage());
                 }
 
                 // Decorator Pattern
@@ -361,18 +283,13 @@ public class DonationController {
                 view.showReceipt(receipt.generateReceipt());
                 view.clearFields();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Donation registered and saved successfully!"
-                );
+                JOptionPane.showMessageDialog(view, "Donation registered and saved successfully!");
 
             } catch (RuntimeException ex) {
 
                 JOptionPane.showMessageDialog(
                         view,
-                        ex.getMessage() == null
-                                ? "An unexpected error occurred."
-                                : ex.getMessage(),
+                        ex.getMessage() == null ? "An unexpected error occurred." : ex.getMessage(),
                         "Donation Error",
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -406,9 +323,7 @@ public class DonationController {
 
                 JOptionPane.showMessageDialog(
                         view,
-                        ex.getMessage() == null
-                                ? "Could not load donation."
-                                : ex.getMessage(),
+                        ex.getMessage() == null ? "Could not load donation." : ex.getMessage(),
                         "Donation Error",
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -423,51 +338,35 @@ public class DonationController {
                 int donationId = view.getSelectedDonationId();
 
                 if (donationId == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a donation first."
-                    );
+                    throw new IllegalArgumentException("Please select a donation first.");
                 }
 
-                Donation original =
-                        donationRepository.findDonationById(donationId);
+                Donation original = donationRepository.findDonationById(donationId);
 
                 if (original == null) {
-                    throw new IllegalArgumentException(
-                            "Donation could not be found."
-                    );
+                    throw new IllegalArgumentException("Donation could not be found.");
                 }
 
                 // Preserve the original donor
-                Donation updatedDonation = createDonationFromView(
-                        view,
-                        donationId,
-                        original.getDonor()
-                );
+                Donation updatedDonation = createDonationFromView(view, donationId, original.getDonor());
 
-                boolean updated =
-                        donationRepository.updateDonation(updatedDonation);
+                boolean updated = donationRepository.updateDonation(updatedDonation);
 
                 if (!updated) {
-                    throw new IllegalStateException(
-                            "Could not update donation."
-                    );
+                    throw new IllegalStateException("Could not update donation.");
                 }
 
                 refreshDonationTable(view);
                 view.clearFields();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Donation updated successfully!"
+                JOptionPane.showMessageDialog(view, "Donation updated successfully!"
                 );
 
             } catch (RuntimeException ex) {
 
                 JOptionPane.showMessageDialog(
                         view,
-                        ex.getMessage() == null
-                                ? "An unexpected error occurred."
-                                : ex.getMessage(),
+                        ex.getMessage() == null ? "An unexpected error occurred." : ex.getMessage(),
                         "Donation Error",
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -482,9 +381,7 @@ public class DonationController {
                 int donationId = view.getSelectedDonationId();
 
                 if (donationId == -1) {
-                    throw new IllegalArgumentException(
-                            "Please select a donation first."
-                    );
+                    throw new IllegalArgumentException("Please select a donation first.");
                 }
 
                 int confirmation = JOptionPane.showConfirmDialog(
@@ -498,39 +395,29 @@ public class DonationController {
                     return;
                 }
 
-                Donation donation =
-                        donationRepository.findDonationById(donationId);
+                Donation donation = donationRepository.findDonationById(donationId);
 
                 if (donation == null) {
-                    throw new IllegalArgumentException(
-                            "Donation could not be found."
-                    );
+                    throw new IllegalArgumentException("Donation could not be found.");
                 }
 
-                boolean deleted =
-                        donationRepository.deleteDonation(donationId);
+                boolean deleted = donationRepository.deleteDonation(donationId);
 
                 if (!deleted) {
-                    throw new IllegalStateException(
-                            "Could not delete donation."
-                    );
+                    throw new IllegalStateException("Could not delete donation.");
                 }
 
                 refreshDonationTable(view);
                 view.clearFields();
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        "Donation deleted successfully!"
+                JOptionPane.showMessageDialog(view, "Donation deleted successfully!"
                 );
 
             } catch (RuntimeException ex) {
 
                 JOptionPane.showMessageDialog(
                         view,
-                        ex.getMessage() == null
-                                ? "An unexpected error occurred."
-                                : ex.getMessage(),
+                        ex.getMessage() == null ? "An unexpected error occurred." : ex.getMessage(),
                         "Donation Error",
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -620,32 +507,22 @@ public class DonationController {
         }
     }
 
-    private Donation createDonationFromView(
-            DonationView view,
-            int donationId,
-            Donor donor) {
+    private Donation createDonationFromView(DonationView view, int donationId, Donor donor) {
 
         String method = view.getDonationMethod();
         String type = view.getDonationType();
 
         if (method == null || type == null || type.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Select a valid donation method and type."
-            );
+            throw new IllegalArgumentException("Select a valid donation method and type.");
         }
 
-        if ((method.equals("Online") || method.equals("Check"))
-                && !type.equalsIgnoreCase("Money")) {
+        if ((method.equals("Online") || method.equals("Check")) && !type.equalsIgnoreCase("Money")) {
 
-            throw new IllegalArgumentException(
-                    "Monetary donations must use the Money type."
-            );
+            throw new IllegalArgumentException("Monetary donations must use the Money type.");
         }
 
         if (method.equals("In-Kind") && type.equalsIgnoreCase("Money")) {
-            throw new IllegalArgumentException(
-                    "Select a physical donation type."
-            );
+            throw new IllegalArgumentException("Select a physical donation type.");
         }
 
         double amount = validateAmount(view.getAmount(), method);
@@ -655,46 +532,28 @@ public class DonationController {
         DonationProcessor processor = new DonationProcessor(strategy);
 
         if (!processor.processDonation(amount)) {
-            throw new IllegalArgumentException(
-                    "Donation could not be accepted."
-            );
+            throw new IllegalArgumentException("Donation could not be accepted.");
         }
 
-        Donation donation = new Donation(
-                donationId,
-                donor,
-                amount,
-                type,
-                method
-        );
+        Donation donation = new Donation(donationId, donor, amount, type, method);
 
         switch (method) {
 
             case "Online":
 
-                donation.setOnlineDetails(
-                        view.getPaymentEmail(),
-                        view.getPaymentReference()
-                );
+                donation.setOnlineDetails(view.getPaymentEmail(), view.getPaymentReference());
 
                 break;
 
             case "Check":
 
-                donation.setCheckDetails(
-                        view.getBankName(),
-                        view.getCheckNumber(),
-                        view.getAccountHolder()
-                );
+                donation.setCheckDetails(view.getBankName(), view.getCheckNumber(), view.getAccountHolder());
 
                 break;
 
             case "In-Kind":
 
-                donation.setInKindDetails(
-                        view.getItemName(),
-                        Integer.parseInt(view.getQuantity())
-                );
+                donation.setInKindDetails(view.getItemName(), Integer.parseInt(view.getQuantity()));
 
                 break;
         }

@@ -2,8 +2,7 @@ package config;
 
 public class DatabaseConfig {
 
-    private static final String CONNECTION_STRING =
-            "mongodb+srv://Kevin_David:russianbias@cluster0.uq9abcj.mongodb.net/";
+    private static final String CONNECTION_STRING =  "mongodb+srv://Kevin_David:russianbias@cluster0.uq9abcj.mongodb.net/";
 
     private static final String DATABASE_NAME = "Design_Patterns";
 

@@ -1,4 +1,3 @@
-
 package strategy;
 
 public interface DonationStrategy {

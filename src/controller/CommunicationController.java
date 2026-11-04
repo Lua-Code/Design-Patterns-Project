@@ -26,17 +26,13 @@ public class CommunicationController {
     private void validateEmail(String email) {
         if (email == null
                 || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-            throw new IllegalArgumentException(
-                    "Please enter a valid email address."
-            );
+            throw new IllegalArgumentException("Please enter a valid email address.");
         }
     }
 
     private void validatePhone(String phone) {
         if (phone == null || !phone.matches("^01[0125][0-9]{8}$")) {
-            throw new IllegalArgumentException(
-                    "Please enter a valid Egyptian mobile number."
-            );
+            throw new IllegalArgumentException("Please enter a valid Egyptian mobile number.");
         }
     }
 
@@ -44,13 +40,7 @@ public class CommunicationController {
         view.clearTable();
 
         for (NotificationRecord record : getNotifications()) {
-            view.addNotificationToTable(
-                    record.getMethod(),
-                    record.getRecipient(),
-                    record.getMessage(),
-                    record.getStatus(),
-                    record.getDateTime()
-            );
+            view.addNotificationToTable(record.getMethod(), record.getRecipient(), record.getMessage(), record.getStatus(), record.getDateTime());
         }
     }
 
@@ -65,15 +55,11 @@ public class CommunicationController {
                 String message = view.getMessage();
 
                 if (message == null || message.isBlank()) {
-                    throw new IllegalArgumentException(
-                            "Please enter a message."
-                    );
+                    throw new IllegalArgumentException("Please enter a message.");
                 }
 
                 if (message.length() > 1000) {
-                    throw new IllegalArgumentException(
-                            "Message cannot exceed 1000 characters."
-                    );
+                    throw new IllegalArgumentException("Message cannot exceed 1000 characters.");
                 }
 
                 // Factory Method Pattern
@@ -88,17 +74,10 @@ public class CommunicationController {
                     factory = new SMSNotificationFactory();
 
                 } else {
-                    throw new IllegalArgumentException(
-                            "Invalid notification method."
-                    );
+                    throw new IllegalArgumentException("Invalid notification method.");
                 }
 
-                NotificationRecord newRecord = new NotificationRecord(
-                        method,
-                        recipient,
-                        message,
-                        "Simulated"
-                );
+                NotificationRecord newRecord = new NotificationRecord(method, recipient, message, "Simulated");
 
                 notificationRepository.addNotification(newRecord);
 
@@ -106,38 +85,24 @@ public class CommunicationController {
 
                 refreshHistory(view);
 
-                JOptionPane.showMessageDialog(
-                        view,
-                        method + " notification simulated and saved!",
-                        "Success",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, method + " notification simulated and saved!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
                 view.clearFields();
 
             } catch (IllegalArgumentException | IllegalStateException ex) {
-                JOptionPane.showMessageDialog(
-                        view,
-                        ex.getMessage(),
-                        "Notification Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                JOptionPane.showMessageDialog(view, ex.getMessage(), "Notification Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         view.getDeleteButton().addActionListener(e -> {
             try {
-                NotificationRecord selectedRecord =
-                        view.getSelectedNotification();
+                NotificationRecord selectedRecord = view.getSelectedNotification();
 
                 if (selectedRecord == null) {
-                    throw new IllegalArgumentException(
-                            "Please select a notification to delete"
-                    );
+                    throw new IllegalArgumentException("Please select a notification to delete");
                 }
 
-                int confirmation = JOptionPane.showConfirmDialog(
-                        view,
+                int confirmation = JOptionPane.showConfirmDialog(view,
                         "Are you sure you want to delete this notification from history?",
                         "Confirm Deletion",
                         JOptionPane.YES_NO_OPTION
@@ -147,14 +112,10 @@ public class CommunicationController {
                     return;
                 }
 
-                boolean deleted = notificationRepository.deleteNotification(
-                        selectedRecord
-                );
+                boolean deleted = notificationRepository.deleteNotification(selectedRecord);
 
                 if (!deleted) {
-                    throw new IllegalStateException(
-                            "The notification could not be found or deleted"
-                    );
+                    throw new IllegalStateException("The notification could not be found or deleted");
                 }
 
                 refreshHistory(view);
