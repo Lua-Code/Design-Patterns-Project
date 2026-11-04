@@ -11,37 +11,32 @@ public class LookupController {
 
     private final LookupRepository lookupRepository;
 
-    private int nextId = 1;
-
     public LookupController() {
-
         lookupRepository = new LookupRepository();
         lookupRepository.ensureDefaultItems();
     }
 
-    // Identify values required for core system functionality
-    private boolean isProtectedItem(LookupItem item) {
-
-        return item.getCategory().equals("Donation Types")
-                && item.getValue().equalsIgnoreCase("Money");
+    public boolean isProtectedItem(LookupItem item) {
+        return item != null
+                && "Donation Types".equals(item.getCategory())
+                && "Money".equalsIgnoreCase(item.getValue());
     }
 
-
-    // CREATE
     public void addLookupItem(String category, String value) {
         validateCategory(category);
         validateValue(value);
 
-        value = value.trim();
+        String cleanValue = value.trim();
 
-        if (lookupRepository.findLookupItem(category, value) != null) {
-            throw new IllegalArgumentException("This item already exists in the selected category.");
+        if (lookupRepository.findLookupItem(category, cleanValue) != null) {
+            throw new IllegalArgumentException(
+                    "This lookup item already exists in this category"
+            );
         }
 
-        lookupRepository.addLookupItem(category, value);
+        lookupRepository.addLookupItem(category, cleanValue);
     }
 
-    // READ
     public ArrayList<LookupItem> getAllLookupItems() {
         return lookupRepository.getAllLookupItems();
     }
@@ -55,99 +50,108 @@ public class LookupController {
         return lookupRepository.findLookupItem(id);
     }
 
-    // UPDATE
     public void updateLookupItem(int id, String newValue) {
         validateValue(newValue);
 
-        LookupItem existingItem = findLookupItem(id);
+        LookupItem existingItem = lookupRepository.findLookupItem(id);
 
         if (existingItem == null) {
-            throw new IllegalArgumentException("Lookup item not found.");
+            throw new IllegalArgumentException("Lookup item was not found");
         }
 
         if (isProtectedItem(existingItem)) {
-            throw new IllegalArgumentException("The Money donation type cannot be modified.");
+            throw new IllegalArgumentException(
+                    "The Money donation type cannot be modified"
+            );
         }
 
-        newValue = newValue.trim();
+        String cleanValue = newValue.trim();
 
-        LookupItem duplicate = lookupRepository.findLookupItem(existingItem.getCategory(), newValue);
+        if (!existingItem.getValue().equalsIgnoreCase(cleanValue)
+                && lookupRepository.isLookupItemInUse(
+                existingItem.getCategory(),
+                existingItem.getValue()
+        )) {
+            throw new IllegalArgumentException(
+                    "This lookup item is currently used by existing records and cannot be renamed"
+            );
+        }
+
+        LookupItem duplicate = lookupRepository.findLookupItem(
+                existingItem.getCategory(),
+                cleanValue
+        );
 
         if (duplicate != null && duplicate.getId() != id) {
-            throw new IllegalArgumentException("This item already exists in the selected category.");
+            throw new IllegalArgumentException(
+                    "This lookup item already exists in this category"
+            );
         }
 
-        lookupRepository.updateLookupItem(id, newValue);
+        lookupRepository.updateLookupItem(id, cleanValue);
     }
 
-    // DELETE
     public void deleteLookupItem(int id) {
-        LookupItem existingItem = findLookupItem(id);
+        LookupItem existingItem = lookupRepository.findLookupItem(id);
 
         if (existingItem == null) {
-            throw new IllegalArgumentException("Lookup item not found.");
+            throw new IllegalArgumentException("Lookup item was not found");
         }
 
         if (isProtectedItem(existingItem)) {
-            throw new IllegalArgumentException("The Money donation type cannot be deleted.");
+            throw new IllegalArgumentException(
+                    "The Money donation type cannot be deleted"
+            );
+        }
+
+        if (lookupRepository.isLookupItemInUse(
+                existingItem.getCategory(),
+                existingItem.getValue()
+        )) {
+            throw new IllegalArgumentException(
+                    "This lookup item is currently used by existing records and cannot be deleted"
+            );
         }
 
         lookupRepository.deleteLookupItem(id);
     }
 
     private void validateCategory(String category) {
-
-        if (category == null ||
-                (!category.equals("Volunteer Skills")
-                        && !category.equals("Beneficiary Needs")
-                        && !category.equals("Donation Types")
-                        && !category.equals("Event Types"))) {
-
-            throw new IllegalArgumentException(
-                    "Invalid lookup category."
-            );
+        if (category == null
+                || !(category.equals("Volunteer Skills")
+                || category.equals("Beneficiary Needs")
+                || category.equals("Donation Types")
+                || category.equals("Event Types"))) {
+            throw new IllegalArgumentException("Please select a valid lookup category");
         }
     }
 
     private void validateValue(String value) {
-
-        if (value == null || value.isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "Lookup value cannot be empty."
-            );
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException("Lookup value cannot be empty");
         }
 
         if (value.trim().length() > 100) {
-
             throw new IllegalArgumentException(
-                    "Lookup value cannot exceed 100 characters."
+                    "Lookup value cannot exceed 100 characters"
             );
         }
     }
 
     public void connectView(LookupView view) {
-
         Runnable refresh = () -> {
-
             view.displayItems(
                     getItemsByCategory(view.getSelectedCategory())
             );
-
             view.clearInput();
         };
 
         refresh.run();
 
-        view.getCategoryBox().addActionListener(
-                e -> refresh.run()
-        );
+        view.getCategoryBox().addActionListener(event -> refresh.run());
 
-        // Add lookup value
-        view.getAddButton().addActionListener(e -> {
-
+        view.getAddButton().addActionListener(event -> {
             try {
-
                 addLookupItem(
                         view.getSelectedCategory(),
                         view.getValueInput()
@@ -155,77 +159,69 @@ public class LookupController {
 
                 refresh.run();
 
-                showSuccess(
+                JOptionPane.showMessageDialog(
                         view,
-                        "Lookup value added successfully!"
+                        "Lookup item added successfully"
                 );
-
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-
-                showError(view, ex.getMessage());
+            } catch (Exception exception) {
+                JOptionPane.showMessageDialog(
+                        view,
+                        exception.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
 
-        // Update lookup value
-        view.getUpdateButton().addActionListener(e -> {
-
+        view.getUpdateButton().addActionListener(event -> {
             try {
+                int selectedId = view.getSelectedItemId();
 
-                int id = view.getSelectedItemId();
-
-                if (id == -1) {
-
+                if (selectedId == -1) {
                     throw new IllegalArgumentException(
-                            "Please select an item to update."
+                            "Please select a lookup item to update"
                     );
                 }
 
-                updateLookupItem(
-                        id,
-                        view.getValueInput()
-                );
+                updateLookupItem(selectedId, view.getValueInput());
 
                 refresh.run();
 
-                showSuccess(
+                JOptionPane.showMessageDialog(
                         view,
-                        "Lookup value updated successfully!"
+                        "Lookup item updated successfully"
                 );
-
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-
-                showError(view, ex.getMessage());
+            } catch (Exception exception) {
+                JOptionPane.showMessageDialog(
+                        view,
+                        exception.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
 
-        // Delete lookup value
-        view.getDeleteButton().addActionListener(e -> {
-
+        view.getDeleteButton().addActionListener(event -> {
             try {
+                int selectedId = view.getSelectedItemId();
 
-                int id = view.getSelectedItemId();
-
-                if (id == -1) {
-
+                if (selectedId == -1) {
                     throw new IllegalArgumentException(
-                            "Please select an item to delete."
+                            "Please select a lookup item to delete"
                     );
                 }
 
-                // Check protection before asking for confirmation
-                LookupItem selectedItem = findLookupItem(id);
+                LookupItem selectedItem = findLookupItem(selectedId);
 
-                if (selectedItem != null
-                        && isProtectedItem(selectedItem)) {
-
+                if (isProtectedItem(selectedItem)) {
                     throw new IllegalArgumentException(
-                            "The Money donation type cannot be deleted."
+                            "The Money donation type cannot be deleted"
                     );
                 }
 
                 int confirmation = JOptionPane.showConfirmDialog(
                         view,
-                        "Delete this lookup value?",
+                        "Are you sure you want to delete this lookup item?",
                         "Confirm Deletion",
                         JOptionPane.YES_NO_OPTION
                 );
@@ -234,43 +230,22 @@ public class LookupController {
                     return;
                 }
 
-                deleteLookupItem(id);
+                deleteLookupItem(selectedId);
 
                 refresh.run();
 
-                showSuccess(
+                JOptionPane.showMessageDialog(
                         view,
-                        "Lookup value deleted successfully!"
+                        "Lookup item deleted successfully"
                 );
-
-            } catch (IllegalArgumentException | IllegalStateException ex) {
-
-                showError(view, ex.getMessage());
+            } catch (Exception exception) {
+                JOptionPane.showMessageDialog(
+                        view,
+                        exception.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         });
-    }
-
-    private void showSuccess(
-            LookupView view,
-            String message) {
-
-        JOptionPane.showMessageDialog(
-                view,
-                message,
-                "Success",
-                JOptionPane.INFORMATION_MESSAGE
-        );
-    }
-
-    private void showError(
-            LookupView view,
-            String message) {
-
-        JOptionPane.showMessageDialog(
-                view,
-                message,
-                "Error",
-                JOptionPane.ERROR_MESSAGE
-        );
     }
 }

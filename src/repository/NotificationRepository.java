@@ -8,16 +8,19 @@ import database.MongoDBConnection;
 
 import java.util.ArrayList;
 
+import static com.mongodb.client.model.Filters.and;
+import static com.mongodb.client.model.Filters.eq;
+
 public class NotificationRepository {
 
     private final MongoCollection<Document> notifications;
 
     public NotificationRepository() {
-        this.notifications = MongoDBConnection.getDatabase().getCollection("notifications");
+        this.notifications = MongoDBConnection.getDatabase()
+                .getCollection("notifications");
     }
 
     public void addNotification(NotificationRecord record) {
-
         Document document = new Document("method", record.getMethod())
                 .append("recipient", record.getRecipient())
                 .append("message", record.getMessage())
@@ -27,12 +30,12 @@ public class NotificationRepository {
         notifications.insertOne(document);
     }
 
-    // Get all notifications in chronological order
     public ArrayList<NotificationRecord> getAllNotifications() {
-
         ArrayList<NotificationRecord> result = new ArrayList<>();
 
-        for (Document document : notifications.find().sort(Sorts.ascending("dateTime", "_id"))) {
+        for (Document document : notifications.find()
+                .sort(Sorts.ascending("dateTime", "_id"))) {
+
             result.add(new NotificationRecord(
                     document.getString("method"),
                     document.getString("recipient"),
@@ -43,6 +46,18 @@ public class NotificationRepository {
         }
 
         return result;
+    }
+
+    public boolean deleteNotification(NotificationRecord record) {
+        return notifications.deleteOne(
+                and(
+                        eq("method", record.getMethod()),
+                        eq("recipient", record.getRecipient()),
+                        eq("message", record.getMessage()),
+                        eq("status", record.getStatus()),
+                        eq("dateTime", record.getDateTime())
+                )
+        ).getDeletedCount() > 0;
     }
 
     public long getNotificationCount() {

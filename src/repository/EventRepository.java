@@ -1,3 +1,4 @@
+
 package repository;
 
 import com.mongodb.client.MongoCollection;
@@ -27,15 +28,27 @@ public class EventRepository {
         events = database.getCollection("events");
         counters = database.getCollection("_counters");
 
-        events.createIndex(new Document("eventId", 1), new IndexOptions().unique(true));
+        events.createIndex(
+                new Document("eventId", 1),
+                new IndexOptions().unique(true)
+        );
 
         initializeIdCounter(300);
     }
 
-    public Event addEvent(String name, String type, String date, String location, String description, int capacity) {
+    public Event addEvent(
+            String name,
+            String type,
+            String date,
+            String location,
+            String description,
+            int capacity
+    ) {
         int eventId = getNextEventId();
 
-        Event event = new Event(eventId, name, type, date, location, description, capacity);
+        Event event = new Event(
+                eventId, name, type, date, location, description, capacity
+        );
 
         Document document = new Document("eventId", event.getEventId())
                 .append("eventName", event.getEventName())
@@ -67,9 +80,33 @@ public class EventRepository {
         return document == null ? null : toEvent(document);
     }
 
+    public boolean updateEvent(
+            int eventId,
+            String name,
+            String type,
+            String date,
+            String location,
+            String description,
+            int capacity
+    ) {
+        Document updates = new Document("eventName", name)
+                .append("eventType", type)
+                .append("date", date)
+                .append("location", location)
+                .append("description", description)
+                .append("capacity", capacity);
+
+        return events.updateOne(
+                eq("eventId", eventId),
+                new Document("$set", updates)
+        ).getMatchedCount() > 0;
+    }
+
     public boolean registerAttendees(int eventId, int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Number of attendees must exceed zero.");
+            throw new IllegalArgumentException(
+                    "Number of attendees must exceed zero."
+            );
         }
 
         Document condition = new Document(
@@ -86,7 +123,8 @@ public class EventRepository {
                 )
         );
 
-        Document filter = new Document("eventId", eventId).append("$expr", condition);
+        Document filter = new Document("eventId", eventId)
+                .append("$expr", condition);
 
         return events.updateOne(
                 filter,
@@ -105,7 +143,9 @@ public class EventRepository {
         int total = 0;
 
         for (Document document : events.find()) {
-            Number attendees = document.get("registeredAttendees", Number.class);
+            Number attendees = document.get(
+                    "registeredAttendees", Number.class
+            );
 
             if (attendees != null) {
                 total += attendees.intValue();
@@ -116,13 +156,17 @@ public class EventRepository {
     }
 
     public boolean deleteEvent(int eventId) {
-        return events.deleteOne(eq("eventId", eventId)).getDeletedCount() > 0;
+        return events.deleteOne(eq("eventId", eventId))
+                .getDeletedCount() > 0;
     }
 
     public void initializeIdCounter(int highestExistingId) {
         counters.updateOne(
                 eq("_id", "event"),
-                new Document("$max", new Document("sequence", highestExistingId)),
+                new Document(
+                        "$max",
+                        new Document("sequence", highestExistingId)
+                ),
                 new UpdateOptions().upsert(true)
         );
     }
@@ -150,7 +194,9 @@ public class EventRepository {
                 document.getInteger("capacity")
         );
 
-        Number attendees = document.get("registeredAttendees", Number.class);
+        Number attendees = document.get(
+                "registeredAttendees", Number.class
+        );
 
         if (attendees != null) {
             event.setRegisteredAttendees(attendees.intValue());
